@@ -1,0 +1,29 @@
+/**
+ * Standardised API response helpers.
+ * All responses follow the shape:
+ *   { success, message, data?, nextStep?, meta? }
+ */
+
+const success = (res, message, data = null, statusCode = 200, extras = {}) => {
+  const payload = { success: true, message };
+  if (data !== null)          payload.data     = data;
+  if (extras.nextStep)        payload.nextStep = extras.nextStep;
+  if (extras.meta)            payload.meta     = extras.meta;
+  return res.status(statusCode).json(payload);
+};
+
+const created = (res, message, data = null, extras = {}) =>
+  success(res, message, data, 201, extras);
+
+const error = (res, message, statusCode = 500, code = null) =>
+  res.status(statusCode).json({ success: false, message, ...(code && { code }) });
+
+/**
+ * Formats a Joi ValidationError into a 422 response.
+ */
+const validationError = (res, joiError) => {
+  const details = joiError.details.map((d) => d.message);
+  return res.status(422).json({ success: false, message: 'Validation failed.', errors: details });
+};
+
+module.exports = { success, created, error, validationError };

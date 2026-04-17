@@ -1,0 +1,7 @@
+{
+  "javascript.suggest.autoImports": true,
+  "javascript.validate.enable": false,
+  "typescript.validate.enable": false,
+  "js/ts.implicitProjectConfig.checkJs": false,
+  "editor.codeActionsOnSave": {}
+}
