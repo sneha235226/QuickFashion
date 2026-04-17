@@ -41,8 +41,41 @@ const findById = (id) =>
 const findBySlug = (slug) =>
   prisma.category.findUnique({ where: { slug } });
 
-const create = (data) =>
-  prisma.category.create({ data });
+const create = async (data) => {
+  let level = 1;
+  if (data.parentId) {
+    const parent = await prisma.category.findUnique({ where: { id: data.parentId } });
+    if (!parent) throw new Error('Parent category not found');
+    if (parent.level >= 4) throw new Error('Cannot create subcategory below level 4');
+    level = parent.level + 1;
+  }
+
+  // Generate slug from name
+  const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  return prisma.category.create({
+    data: {
+      ...data,
+      slug,
+      level,
+      isLeaf: level === 4,
+    },
+  });
+};
+
+const findByParentId = (parentId) =>
+  prisma.category.findMany({
+    where: { parentId: parentId ? parseInt(parentId, 10) : null },
+    select: {
+      id: true,
+      name: true,
+      level: true,
+      isLeaf: true,
+      _count: {
+        select: { children: true },
+      },
+    },
+  });
 
 const update = (id, data) =>
   prisma.category.update({ where: { id }, data });

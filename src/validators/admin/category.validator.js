@@ -5,11 +5,7 @@ const createCategorySchema = Joi.object({
     'any.required': 'Category name is required.',
     'string.min': 'Category name must be at least 2 characters.',
   }),
-  slug: Joi.string().trim().lowercase().pattern(/^[a-z0-9-]+$/).max(120).optional().messages({
-    'string.pattern.base': 'Slug may only contain lowercase letters, numbers, and hyphens.',
-  }),
-  parentId: Joi.number().integer().positive().optional(),
-  isLeaf: Joi.boolean().optional(),
+  parentId: Joi.number().integer().positive().optional().allow(null),
 });
 
 const updateCategorySchema = Joi.object({

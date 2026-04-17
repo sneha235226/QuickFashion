@@ -1,5 +1,5 @@
 const categoryService = require('../../services/admin/category.service');
-const response        = require('../../utils/response');
+const response = require('../../utils/response');
 const {
   createCategorySchema,
   updateCategorySchema,
@@ -9,13 +9,23 @@ const {
 // ─── Category ─────────────────────────────────────────────────────────────────
 
 /**
- * GET /api/admin/categories
- * Returns root-level categories only. Drill down with GET /:id (shows children).
+ * GET /api/admin/categories?parentId=
+ * Returns categories for a given parent, or roots if parentId is null.
+ * Includes hasChildren flag.
  */
 const list = async (req, res, next) => {
   try {
-    const categories = await categoryService.listCategories();
-    return response.success(res, `${categories.length} root category/categories found.`, { categories });
+    const parentId = req.query.parentId || null;
+    const categories = await categoryService.listByParent(parentId);
+
+    // Process to add hasChildren flag
+    const processed = categories.map(c => ({
+      ...c,
+      hasChildren: c._count.children > 0,
+      _count: undefined // hide Prisma count object
+    }));
+
+    return response.success(res, `${processed.length} category/categories found.`, { categories: processed });
   } catch (err) {
     next(err);
   }

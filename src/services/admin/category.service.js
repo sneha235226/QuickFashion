@@ -15,38 +15,18 @@ const getCategoryById = async (id) => {
   return category;
 };
 
-const createCategory = async ({ name, slug, parentId, isLeaf }) => {
-  // 1. Generate base slug
-  const baseSlug = (slug || name)
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')     // Remove special characters
-    .replace(/[\s_-]+/g, '-')     // Replace spaces/underscores with single hyphen
-    .replace(/^-+|-+$/g, '');     // Trim hyphens from starts/ends
-
-  // 2. Ensure uniqueness by appending suffix if needed
-  let targetSlug = baseSlug;
-  let counter = 1;
-
-  while (await CategoryModel.findBySlug(targetSlug)) {
-    targetSlug = `${baseSlug}-${counter}`;
-    counter++;
-  }
-
-  // 3. Parent validation
-  if (parentId) {
-    const parent = await CategoryModel.findById(parentId);
-    if (!parent) throw new AppError('Parent category not found.', 404, 'NOT_FOUND');
-    if (parent.isLeaf) throw new AppError('Cannot add a child to a leaf category.', 400, 'INVALID_PARENT');
-  }
-
-  return CategoryModel.create({
-    name,
-    slug: targetSlug,
-    parentId: parentId ?? null,
-    isLeaf: isLeaf ?? true
+const createCategory = async ({ name, parentId }) => {
+  // Check for duplicate name under same parent
+  const existing = await prisma.category.findFirst({
+    where: { name, parentId: parentId ?? null }
   });
+  if (existing) throw new AppError('Category with this name already exists under this parent.', 400, 'DUPLICATE_NAME');
+
+  return CategoryModel.create({ name, parentId });
 };
+
+const listByParent = (parentId) => CategoryModel.findByParentId(parentId);
+
 
 const updateCategory = async (id, data) => {
   const category = await CategoryModel.findById(id);

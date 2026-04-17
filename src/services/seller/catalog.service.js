@@ -69,7 +69,7 @@ const createCatalog = async (sellerId, { categoryId }) => {
   const category = await CategoryModel.findById(categoryId);
   if (!category) throw new AppError('Category not found.', 404, 'NOT_FOUND');
   if (!category.isLeaf) {
-    throw new AppError('Please select the deepest category before creating a catalog.', 400, 'NOT_LEAF');
+    return next(new AppError('Please select the deepest category (Level 4) before creating a catalog.', 400, 'NOT_LEAF'));
   }
   return CatalogModel.create({ sellerId, categoryId, status: 'DRAFT' });
 };
