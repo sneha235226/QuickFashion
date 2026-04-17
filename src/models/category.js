@@ -16,20 +16,21 @@ const findRoots = () =>
  * Uses Prisma _count to avoid N+1 — single query.
  */
 const findByParentId = async (parentId) => {
-  const rows = await prisma.category.findMany({
-    where: { parentId: parentId ?? null },
-    include: { _count: { select: { children: true } } },
+  return prisma.category.findMany({
+    where: { parentId: parentId ? parseInt(parentId, 10) : null },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      level: true,
+      isLeaf: true,
+      parentId: true,
+      _count: {
+        select: { children: true },
+      },
+    },
     orderBy: { id: 'asc' },
   });
-
-  return rows.map(({ _count, ...cat }) => ({
-    id: cat.id,
-    name: cat.name,
-    slug: cat.slug,
-    parentId: cat.parentId,
-    isLeaf: cat.isLeaf,
-    hasChildren: _count.children > 0,
-  }));
 };
 
 const findById = (id) =>
@@ -63,19 +64,6 @@ const create = async (data) => {
   });
 };
 
-const findByParentId = (parentId) =>
-  prisma.category.findMany({
-    where: { parentId: parentId ? parseInt(parentId, 10) : null },
-    select: {
-      id: true,
-      name: true,
-      level: true,
-      isLeaf: true,
-      _count: {
-        select: { children: true },
-      },
-    },
-  });
 
 const update = (id, data) =>
   prisma.category.update({ where: { id }, data });
