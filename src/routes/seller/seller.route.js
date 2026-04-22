@@ -2,13 +2,14 @@ const { Router } = require('express');
 const validate = require('../../middleware/validate');
 const { protect, requireMobileVerified, requireApproved, onboardingProtect } = require('../../middleware/auth');
 const { otpSendLimiter, authLimiter } = require('../../middleware/rateLimiter');
-const { uploadGst } = require('../../middleware/upload');
+const { uploadGst, uploadDocument } = require('../../middleware/upload');
 
 
 // Controllers
 const otpCtrl = require('../../controllers/seller/otp.controller');
 const onboardingCtrl = require('../../controllers/seller/onboarding.controller');
-const profileCtrl = require('../../controllers/seller/profile.controller'); // needed for home/dashboard
+const profileCtrl = require('../../controllers/seller/profile.controller');
+const catalogCtrl = require('../../controllers/seller/catalog.controller');
 
 // Validators
 const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema } = require('../../validators/seller/otp.validator');
@@ -142,6 +143,12 @@ router.post(
 router.get('/home', protect, requireApproved, profileCtrl.sellerHome);
 
 router.use('/categories', categoryRoutes);
-router.use('/catalogs', catalogRoutes);
+router.use('/catalog', catalogRoutes);
+
+/**
+ * POST /api/seller/brand/upload
+ * Separate brand document upload API
+ */
+router.post('/brand/upload', protect, requireApproved, uploadDocument, catalogCtrl.uploadBrandStandalone);
 
 module.exports = router;

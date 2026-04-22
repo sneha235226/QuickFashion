@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 // ─── Category ─────────────────────────────────────────────────────────────────
 
@@ -44,29 +45,136 @@ const findBySlug = (slug) =>
 
 const create = async (data) => {
   let level = 1;
-  if (data.parentId) {
-    const parent = await prisma.category.findUnique({ where: { id: data.parentId } });
+  let parentSlug = '';
+  const parentId = data.parentId ? parseInt(data.parentId, 10) : null;
+
+  if (parentId) {
+    const parent = await prisma.category.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error('Parent category not found');
-    if (parent.level >= 4) throw new Error('Cannot create subcategory below level 4');
+    if (parent.level >= 4) {
+      throw new AppError('Maximum category level (4) reached. Cannot create subcategory below level 4.', 400, 'MAX_LEVEL_REACHED');
+    }
     level = parent.level + 1;
+    parentSlug = parent.slug;
   }
 
-  // Generate slug from name
-  const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  // Generate hierarchical slug if not provided
+  const baseSlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const slug = data.slug || (parentSlug ? `${parentSlug}-${baseSlug}` : baseSlug);
 
-  return prisma.category.create({
-    data: {
-      ...data,
-      slug,
-      level,
-      isLeaf: level === 4,
-    },
-  });
+  const createData = {
+    name: data.name,
+    slug,
+    level,
+    isLeaf: level === 4,
+  };
+
+  if (parentId) {
+    createData.parent = { connect: { id: parentId } };
+  }
+
+  return prisma.category.create({ data: createData });
 };
 
 
-const update = (id, data) =>
-  prisma.category.update({ where: { id }, data });
+const update = async (id, data) => {
+  const current = await prisma.category.findUnique({ where: { id } });
+  if (!current) throw new Error('Category not found');
+
+  const updateData = { ...data };
+  let slugChanged = false;
+
+  // Handle parentId change (moving category)
+  if (data.parentId !== undefined && data.parentId !== current.parentId) {
+    const parentId = data.parentId ? parseInt(data.parentId, 10) : null;
+    let level = 1;
+    let parentSlug = '';
+
+    if (parentId) {
+      if (parentId === id) throw new Error('Category cannot be its own parent');
+      const parent = await prisma.category.findUnique({ where: { id: parentId } });
+      if (!parent) throw new Error('Parent category not found');
+      if (parent.level >= 4) throw new Error('Maximum category level (4) reached');
+      level = parent.level + 1;
+      parentSlug = parent.slug;
+    }
+
+    updateData.level = level;
+    updateData.isLeaf = level === 4;
+    updateData.parentId = parentId;
+
+    // Recalculate slug based on new parent
+    const baseSlug = (data.name || current.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    updateData.slug = parentSlug ? `${parentSlug}-${baseSlug}` : baseSlug;
+    slugChanged = true;
+  }
+  // Handle name change (but parentId remains same)
+  else if (data.name && data.name !== current.name) {
+    let parentSlug = '';
+    if (current.parentId) {
+      const parent = await prisma.category.findUnique({ where: { id: current.parentId } });
+      parentSlug = parent.slug;
+    }
+    const baseSlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    updateData.slug = parentSlug ? `${parentSlug}-${baseSlug}` : baseSlug;
+    slugChanged = true;
+  }
+
+  const updated = await prisma.category.update({
+    where: { id },
+    data: updateData
+  });
+
+  // If slug changed, we MUST update all children's slugs recursively
+  if (slugChanged) {
+    await updateChildrenSlugs(id, updated.slug);
+  }
+
+  return updated;
+};
+
+/**
+ * Recursively updates slugs for all descendant categories.
+ */
+const updateChildrenSlugs = async (parentId, parentSlug) => {
+  const children = await prisma.category.findMany({ where: { parentId } });
+
+  for (const child of children) {
+    const baseSlug = child.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const newSlug = `${parentSlug}-${baseSlug}`;
+
+    await prisma.category.update({
+      where: { id: child.id },
+      data: { slug: newSlug }
+    });
+
+    // Recursive call for grandchildren
+    await updateChildrenSlugs(child.id, newSlug);
+  }
+};
+
+const remove = async (id) => {
+  const category = await prisma.category.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: { children: true, catalogs: true }
+      }
+    }
+  });
+
+  if (!category) throw new AppError('Category not found.', 404, 'NOT_FOUND');
+
+  if (category._count.children > 0) {
+    throw new AppError('Cannot delete category with sub-categories.', 400, 'HAS_CHILDREN');
+  }
+
+  if (category._count.catalogs > 0) {
+    throw new AppError('Cannot delete category with associated products (catalogs).', 400, 'HAS_PRODUCTS');
+  }
+
+  return prisma.category.delete({ where: { id } });
+};
 
 // ─── CategoryAttributeGroup ───────────────────────────────────────────────────
 

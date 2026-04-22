@@ -75,6 +75,18 @@ const update = async (req, res, next) => {
   }
 };
 
+/**
+ * DELETE /api/admin/categories/:id
+ */
+const remove = async (req, res, next) => {
+  try {
+    await categoryService.deleteCategory(parseInt(req.params.id, 10));
+    return response.success(res, 'Category deleted successfully.');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── Attributes ───────────────────────────────────────────────────────────────
 
 /**
@@ -143,6 +155,6 @@ const deleteAttribute = async (req, res, next) => {
 };
 
 module.exports = {
-  list, getOne, create, update,
+  list, getOne, create, update, remove,
   listAttributes, addAttribute, updateAttribute, deleteAttribute,
 };

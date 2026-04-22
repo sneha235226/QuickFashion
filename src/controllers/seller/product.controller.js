@@ -1,5 +1,4 @@
 const productService = require('../../services/seller/product.service');
-const bulkService = require('../../services/seller/bulkUpload.service');
 const response = require('../../utils/response');
 const AppError = require('../../utils/AppError');
 const { addProductSchema, updateProductSchema } = require('../../validators/seller/product.validator');
@@ -105,34 +104,6 @@ const uploadImages = async (req, res, next) => {
   }
 };
 
-// ─── Bulk Upload ──────────────────────────────────────────────────────────────
 
-/**
- * POST /api/seller/catalogs/:catalogId/products/bulk
- * Multipart: field "file" (.xlsx / .csv)
- */
-const bulk = async (req, res, next) => {
-  try {
-    if (!req.file) throw new AppError('No file uploaded.', 400, 'NO_FILE');
 
-    const axios = require('axios');
-    const fileResponse = await axios.get(req.file.location, { responseType: 'arraybuffer' });
-    const fileBuffer = Buffer.from(fileResponse.data);
-
-    const result = await bulkService.processBulkUpload(
-      parseInt(req.params.catalogId, 10),
-      req.seller.id,
-      fileBuffer
-    );
-
-    const message = result.errors.length === 0
-      ? `${result.inserted.length} product(s) imported successfully.`
-      : `${result.inserted.length} product(s) imported. ${result.errors.length} row(s) had errors.`;
-
-    return response.success(res, message, result);
-  } catch (err) {
-    next(err);
-  }
-};
-
-module.exports = { add, getOne, update, remove, uploadImages, bulk };
+module.exports = { add, getOne, update, remove, uploadImages };

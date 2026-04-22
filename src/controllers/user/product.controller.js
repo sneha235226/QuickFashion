@@ -38,4 +38,16 @@ const getOne = async (req, res, next) => {
     }
 };
 
-module.exports = { list, getOne };
+const listCatalogs = async (req, res, next) => {
+    try {
+        const { error, value } = listSchema.validate(req.query);
+        if (error) return response.validationError(res, error);
+
+        const result = await productService.listCatalogs(value);
+        return response.success(res, 'Catalogs retrieved successfully.', result);
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { list, getOne, listCatalogs };

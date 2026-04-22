@@ -6,13 +6,11 @@ const response = require('../../utils/response');
 
 const router = Router();
 
-// router.use(protect, requireApproved);
+router.use(protect, requireApproved);
 
 router.get('/', async (req, res, next) => {
   try {
     const parentId = req.query.parentId ? parseInt(req.query.parentId, 10) : null;
-
-    // If a parentId was supplied, validate it exists
     if (parentId !== null) {
       const parent = await CategoryModel.findById(parentId);
       if (!parent) return next(new AppError('Parent category not found.', 404, 'NOT_FOUND'));

@@ -1,9 +1,9 @@
 const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 const s3 = new S3Client({
-  region:      process.env.AWS_REGION,
+  region: process.env.AWS_REGION,
   credentials: {
-    accessKeyId:     process.env.AWS_ACCESS_KEY_ID,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
@@ -30,4 +30,17 @@ const keyFromUrl = (url) => {
   }
 };
 
-module.exports = { s3, BUCKET, deleteFile, keyFromUrl };
+/**
+ * Construct the public S3 URL for a given key.
+ * This ensures the URL follows the format: https://{bucket}.s3.{region}.amazonaws.com/{key}
+ */
+const getPublicUrl = (key) => {
+  if (!key) return null;
+  // If it's already a full URL, return it
+  if (key.startsWith('http')) return key;
+
+  const region = process.env.AWS_REGION || 'ap-south-1';
+  return `https://${BUCKET}.s3.${region}.amazonaws.com/${key}`;
+};
+
+module.exports = { s3, BUCKET, deleteFile, keyFromUrl, getPublicUrl };

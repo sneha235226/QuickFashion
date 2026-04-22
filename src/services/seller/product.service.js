@@ -3,6 +3,7 @@ const CatalogModel = require('../../models/catalog');
 const CategoryModel = require('../../models/category');
 const AppError = require('../../utils/AppError');
 const { generateUniqueSku } = require('../../utils/sku');
+const { getPublicUrl } = require('../../utils/s3');
 
 const MAX_PRODUCTS = 9;
 
@@ -167,7 +168,7 @@ const uploadImages = async (productId, catalogId, sellerId, files) => {
     const uploaded = files[imageType];
     if (!uploaded || uploaded.length === 0) continue;
 
-    const url = uploaded[0].location; // S3 URL from multer-s3
+    const url = getPublicUrl(uploaded[0].key); // Full S3 URL
     await ProductModel.upsertImage(productId, imageType, url);
     saved.push({ imageType, url });
   }

@@ -35,35 +35,7 @@ const uploadDocument = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
 }).single('document');
 
-// ─── Bulk upload (CSV / Excel) ────────────────────────────────────────────────
 
-const bulkStorage = multerS3({
-  s3,
-  bucket: BUCKET,
-  contentType: multerS3.AUTO_CONTENT_TYPE,
-  key: (_req, file, cb) => {
-    const unique = crypto.randomBytes(8).toString('hex');
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `bulk/${unique}${ext}`);
-  },
-});
-
-
-const bulkFilter = (_req, file, cb) => {
-  const allowed = ['.csv', '.xlsx', '.xls'];
-  const ext = path.extname(file.originalname).toLowerCase();
-  if (allowed.includes(ext)) {
-    cb(null, true);
-  } else {
-    cb(new AppError('Only CSV or Excel files are accepted for bulk upload.', 400, 'INVALID_FILE_TYPE'));
-  }
-};
-
-const uploadBulk = multer({
-  storage: bulkStorage,
-  fileFilter: bulkFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
-}).single('file');
 
 /**
  * Wraps multer middleware to propagate errors into Express's next().
@@ -129,7 +101,6 @@ const gstUpload = multer({
 
 module.exports = {
   uploadDocument: wrapMulter(uploadDocument),
-  uploadBulk: wrapMulter(uploadBulk),
   uploadImages: wrapMulter(imageUpload),
   uploadGst: wrapMulter(gstUpload),
 };

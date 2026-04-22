@@ -41,7 +41,7 @@ enum AttributeType {
 
 enum CatalogStatus {
   DRAFT
-  PENDING_APPROVAL
+  SUBMITTED
   APPROVED
   REJECTED
   DISCARDED

@@ -1,79 +1,85 @@
+const authService = require('../../services/auth.service');
 const UserModel = require('../../models/user');
-const jwt = require('../../utils/jwt');
+const bcrypt = require('bcryptjs');
+const { registerSchema, sendOtpSchema, verifyOtpSchema } = require('../../validators/user/auth.validator');
 const response = require('../../utils/response');
 const AppError = require('../../utils/AppError');
-const bcrypt = require('bcryptjs');
-const Joi = require('joi');
 
-const registerSchema = Joi.object({
-    name: Joi.string().required(),
-    email: Joi.string().email().required(),
-    phone: Joi.string().required(),
-    password: Joi.string().min(6).required(),
-});
-
-const loginSchema = Joi.object({
-    phone: Joi.string().required(),
-    password: Joi.string().required(),
-});
-
+/**
+ * POST /api/user/auth/register
+ * Simple password-based registration
+ */
 const register = async (req, res, next) => {
     try {
         const { error, value } = registerSchema.validate(req.body);
         if (error) return next(new AppError(error.details[0].message, 400, 'VALIDATION_ERROR'));
 
-        const existingUser = await UserModel.findByMobile(value.phone);
+        const existingUser = await UserModel.findByMobile(value.mobile);
         if (existingUser) {
-            return next(new AppError('User with this phone number already exists.', 409, 'USER_EXISTS'));
+            return next(new AppError('User with this mobile number already exists.', 409, 'USER_EXISTS'));
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(value.password, salt);
-
-        const prisma = require('../../config/database');
-        const newUser = await prisma.user.create({
-            data: {
-                name: value.name,
-                email: value.email,
-                mobileNumber: value.phone,
-                password: hashedPassword,
-                isVerified: true, // Assuming true since OTP is omitted for user in this specific prompt request, or can be false
-            }
+        const hashedPassword = await bcrypt.hash(value.password, 10);
+        const newUser = await UserModel.create({
+            mobileNumber: value.mobile,
+            name: value.name,
+            email: value.email,
+            password: hashedPassword
         });
 
+        const jwt = require('../../utils/jwt');
         const tokens = jwt.generateUserTokens({ userId: newUser.id, mobile: newUser.mobileNumber });
         await UserModel.updateRefreshToken(newUser.id, tokens.refreshToken);
 
-        return response.success(res, 'User registered successfully', { tokens, user: { id: newUser.id, name: newUser.name } });
+        return response.success(res, 'User registered successfully.', { tokens, user: { id: newUser.id, name: newUser.name } });
     } catch (err) {
         next(err);
     }
 };
 
-const login = async (req, res, next) => {
+/**
+ * POST /api/user/auth/send-otp
+ * Login OTP trigger
+ */
+const sendOtp = async (req, res, next) => {
     try {
-        const { error, value } = loginSchema.validate(req.body);
+        const { error, value } = sendOtpSchema.validate(req.body);
         if (error) return next(new AppError(error.details[0].message, 400, 'VALIDATION_ERROR'));
 
-        const prisma = require('../../config/database');
-        const user = await prisma.user.findUnique({ where: { mobileNumber: value.phone } });
-
+        // Optional: Check if user exists before sending OTP for login
+        const user = await UserModel.findByMobile(value.mobile);
         if (!user) {
-            return next(new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS'));
+            return next(new AppError('User not found. Please register first.', 404, 'USER_NOT_FOUND'));
         }
 
-        const isMatch = await bcrypt.compare(value.password, user.password || '');
-        if (!isMatch) {
-            return next(new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS'));
-        }
-
-        const tokens = jwt.generateUserTokens({ userId: user.id, mobile: user.mobileNumber });
-        await UserModel.updateRefreshToken(user.id, tokens.refreshToken);
-
-        return response.success(res, 'Login successful', { tokens, user: { id: user.id, name: user.name } });
+        const { requestId } = await authService.sendOtp(value.mobile, 'USER');
+        return response.success(res, `OTP sent to ${value.mobile}.`, { requestId });
     } catch (err) {
         next(err);
     }
 };
 
-module.exports = { register, login };
+/**
+ * POST /api/user/auth/verify-otp
+ * Login OTP verification
+ */
+const verifyOtp = async (req, res, next) => {
+    try {
+        const { error, value } = verifyOtpSchema.validate(req.body);
+        if (error) return next(new AppError(error.details[0].message, 400, 'VALIDATION_ERROR'));
+
+        const { mobile, otp, requestId } = value;
+        const tokens = await authService.verifyOtp(
+            mobile,
+            otp,
+            'USER',
+            requestId
+        );
+
+        return response.success(res, 'Login successful.', { ...tokens });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { register, sendOtp, verifyOtp };

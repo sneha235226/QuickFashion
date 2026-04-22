@@ -29,9 +29,11 @@ const listByParent = (parentId) => CategoryModel.findByParentId(parentId);
 
 
 const updateCategory = async (id, data) => {
-  const category = await CategoryModel.findById(id);
-  if (!category) throw new AppError('Category not found.', 404, 'NOT_FOUND');
   return CategoryModel.update(id, data);
+};
+
+const deleteCategory = async (id) => {
+  return CategoryModel.remove(id);
 };
 
 // ─── Attributes ───────────────────────────────────────────────────────────────
@@ -133,8 +135,10 @@ module.exports = {
   getCategoryById,
   createCategory,
   updateCategory,
+  listByParent,
   getAttributesByCategory,
   addAttribute,
   updateAttribute,
   deleteAttribute,
+  deleteCategory,
 };

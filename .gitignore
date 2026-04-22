@@ -6,3 +6,7 @@ node_modules
 *.log
 *_log.txt
 *.txt
+
+server_log.txt
+server_log_2.txt
+server_log_3.txt

@@ -1,9 +1,8 @@
 const SellerOnboardingModel = require('../../models/seller_onboarding');
 const AppError = require('../../utils/AppError');
 const response = require('../../utils/response');
-// Typically we would use Zod or Joi here. Using simple validation for now to match prompt requirements.
-// The task states "Implement input validation using Zod/Joi for all steps"
 const Joi = require('joi');
+const { getPublicUrl } = require('../../utils/s3');
 
 const step1Schema = Joi.object({
     firstName: Joi.string().required(),
@@ -20,7 +19,7 @@ const step2Schema = Joi.object({
     businessType: Joi.string().valid('individual', 'proprietorship', 'company').required(),
     storeType: Joi.string().valid('wholesale', 'retail').required(),
     gstNumber: Joi.string().required(),
-    gstDocument: Joi.string().uri().required(), // assuming S3 URL is sent from frontend
+    gstDocument: Joi.string().uri().required(),
     address: Joi.object({
         line1: Joi.string().required(),
         line2: Joi.string().optional().allow(''),
@@ -92,9 +91,9 @@ const step2 = async (req, res, next) => {
             }
         }
 
-        // If a file was uploaded, use its S3 location
+        // If a file was uploaded, use its S3 public URL
         if (req.file) {
-            req.body.gstDocument = req.file.location;
+            req.body.gstDocument = getPublicUrl(req.file.key);
         }
 
         const { error, value } = step2Schema.validate(req.body, { abortEarly: false });
@@ -187,7 +186,7 @@ const uploadGst = async (req, res, next) => {
         }
 
         return response.success(res, 'GST document uploaded successfully.', {
-            location: req.file.location, // S3 URL
+            location: getPublicUrl(req.file.key), // Full S3 URL
         });
     } catch (err) {
         next(err);

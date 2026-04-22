@@ -251,7 +251,7 @@ const submitCatalog = async (catalogId, sellerId) => {
     }
   }
 
-  return CatalogModel.update(catalogId, { status: 'PENDING_APPROVAL', rejectionNote: null });
+  return CatalogModel.update(catalogId, { status: 'SUBMITTED', rejectionNote: null });
 };
 
 /**
@@ -260,9 +260,9 @@ const submitCatalog = async (catalogId, sellerId) => {
 const discardCatalog = async (catalogId, sellerId) => {
   const catalog = await assertOwnership(catalogId, sellerId);
   if (!['DRAFT', 'REJECTED'].includes(catalog.status)) {
-    throw new AppError('Only DRAFT or REJECTED catalogs can be discarded.', 400, 'INVALID_STATUS');
+    throw new AppError('Only DRAFT or REJECTED catalogs can be deleted.', 400, 'INVALID_STATUS');
   }
-  return CatalogModel.update(catalogId, { status: 'DISCARDED' });
+  return prisma.catalog.delete({ where: { id: catalogId } });
 };
 
 // ─── Brand Documents ──────────────────────────────────────────────────────────
@@ -280,6 +280,288 @@ const deleteDocument = async (catalogId, sellerId, documentId) => {
   return CatalogModel.deleteDocument(documentId);
 };
 
+/**
+- [/] Implement Unified Seller Catalog Upload flow <!-- id: 17 -->
+  - [x] Add unified catalog validator <!-- id: 18 -->
+  - [x] Implement createUnifiedCatalog service <!-- id: 19 -->
+  - [ ] Add unified catalog upload controller/route <!-- id: 20 -->
+ */
+const createUnifiedCatalog = async (sellerId, payload) => {
+  const { categoryId, brandName, commonAttributes = [], products = [], brandDocuments = [] } = payload;
+
+  // 1. Basic category check
+  const category = await CategoryModel.findById(categoryId);
+  if (!category) throw new AppError('Category not found.', 404, 'NOT_FOUND');
+  if (!category.isLeaf) throw new AppError('Catalogs can only be created in leaf categories.', 400, 'NOT_LEAF');
+
+  // 2. Attribute validation logic (similar to submitCatalog)
+  const allAttrs = await CategoryModel.findAttributesFlatByCategoryId(categoryId);
+  const requiredCommon = allAttrs.filter((a) => a.isRequired && !a.isVariant);
+  const requiredVariant = allAttrs.filter((a) => a.isRequired && a.isVariant);
+
+  // Check required common
+  const commonIds = commonAttributes.map(a => a.attributeId);
+  const missingCommon = requiredCommon.filter(a => !commonIds.includes(a.id));
+  if (missingCommon.length > 0) {
+    throw new AppError(`Missing required common attribute(s): ${missingCommon.map(a => a.name).join(', ')}`, 400, 'MISSING_ATTRIBUTES');
+  }
+
+  // Resolve attributes (validation of types/options)
+  const resolvedCommon = await resolveAttributeValues(categoryId, commonAttributes, 'common');
+
+  // Prepare product data
+  const preparedProducts = [];
+  for (const p of products) {
+    const variantIds = (p.variantAttributes || []).map(a => a.attributeId);
+    const missingVariant = requiredVariant.filter(a => !variantIds.includes(a.id));
+    if (missingVariant.length > 0) {
+      throw new AppError(`A product is missing required variant attribute(s): ${missingVariant.map(a => a.name).join(', ')}`, 400, 'MISSING_ATTRIBUTES');
+    }
+
+    const resolvedVariant = await resolveAttributeValues(categoryId, p.variantAttributes || [], 'variant');
+    const sku = await generateUniqueSku(async (c) => !(await ProductModel.skuExistsForSeller(c, sellerId)));
+
+    preparedProducts.push({ ...p, resolvedVariant, sku });
+  }
+
+  // 3. Perform everything in a single transaction
+  return prisma.$transaction(async (tx) => {
+    // a. Create Catalog
+    const catalog = await tx.catalog.create({
+      data: {
+        sellerId,
+        categoryId,
+        brandName,
+        status: 'SUBMITTED'
+      }
+    });
+
+    // b. Create Common Attributes
+    if (resolvedCommon.length > 0) {
+      await tx.catalogAttributeValue.createMany({
+        data: resolvedCommon.map(v => ({
+          catalogId: catalog.id,
+          attributeId: v.attributeId,
+          value: v.value
+        }))
+      });
+    }
+
+    // c. Create Brand Documents
+    if (brandDocuments.length > 0) {
+      await tx.brandDocument.createMany({
+        data: brandDocuments.map(d => ({
+          catalogId: catalog.id,
+          documentUrl: d.documentUrl,
+          documentType: d.documentType
+        }))
+      });
+    }
+
+    // d. Create Products and many-to-many
+    for (const p of preparedProducts) {
+      const product = await tx.product.create({
+        data: {
+          catalogId: catalog.id,
+          productName: p.productName,
+          price: p.price,
+          mrp: p.mrp,
+          returnPrice: p.returnPrice,
+          stock: p.stock,
+          sku: p.sku,
+          hsn: p.hsn,
+          gstRate: p.gstRate,
+          netWeight: p.netWeight,
+          styleCode: p.styleCode
+        }
+      });
+
+      // Attribute Values
+      if (p.resolvedVariant.length > 0) {
+        await tx.productAttributeValue.createMany({
+          data: p.resolvedVariant.map(v => ({
+            productId: product.id,
+            attributeId: v.attributeId,
+            value: v.value
+          }))
+        });
+      }
+
+      // Images
+      if (p.images && p.images.length > 0) {
+        await tx.productImage.createMany({
+          data: p.images.map(img => ({
+            productId: product.id,
+            imageType: img.imageType,
+            url: img.url
+          }))
+        });
+      }
+    }
+
+    return tx.catalog.findUnique({
+      where: { id: catalog.id },
+      include: {
+        products: { include: { attributeValues: true, images: true } },
+        commonAttributes: true,
+        documents: true
+      }
+    });
+  });
+};
+
+/**
+ * FINAL CONSOLIDATED SUBMISSION (Single API)
+ * Payload format is dictionary-based: { categoryId, productInventory, productDetails, otherAttributes, variants[], images[] }
+ */
+const submitFinalCatalog = async (sellerId, payload) => {
+  const { categoryId, productInventory, productDetails, otherAttributes, variants, images } = payload;
+
+  // 1. Validate category level 4
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+    include: { attributes: true }
+  });
+
+  if (!category) throw new AppError('Category not found.', 404, 'NOT_FOUND');
+  if (!category.isLeaf || category.level !== 4) {
+    throw new AppError('Products can only be submitted to Level 4 (Leaf) categories.', 400, 'NOT_LEAF');
+  }
+
+  // 2. Build Name -> ID Map for resolving dictionary keys
+  const allAttrs = category.attributes;
+  const attrNameMap = {};
+  allAttrs.forEach(a => {
+    attrNameMap[a.name.toLowerCase()] = a;
+  });
+
+  // 3. Resolve Common Attributes (productDetails + otherAttributes)
+  // We merge them but ignore "brandName" which goes to the Catalog model
+  const rawCommon = { ...productDetails, ...otherAttributes };
+  delete rawCommon.brandName; // Handled separately
+
+  const resolvedCommon = [];
+  Object.entries(rawCommon).forEach(([name, value]) => {
+    const attr = attrNameMap[name.toLowerCase()];
+    if (attr && !attr.isVariant) {
+      resolvedCommon.push({ attributeId: attr.id, value: String(value) });
+    }
+  });
+
+  // Check required common
+  const requiredCommon = allAttrs.filter(a => a.isRequired && !a.isVariant);
+  const resolvedCommonIds = resolvedCommon.map(r => r.attributeId);
+  const missingCommon = requiredCommon.filter(a => !resolvedCommonIds.includes(a.id));
+  if (missingCommon.length > 0) {
+    throw new AppError(`Missing required common attribute(s): ${missingCommon.map(a => a.name).join(', ')}`, 400, 'MISSING_ATTRIBUTES');
+  }
+
+  // 4. Resolve Products (Variants)
+  const requiredVariant = allAttrs.filter(a => a.isRequired && a.isVariant);
+  const preparedProducts = [];
+
+  for (const v of variants) {
+    const resolvedVariant = [];
+    Object.entries(v).forEach(([name, value]) => {
+      // Ignore static product fields (price, mrp, inventory)
+      if (['price', 'mrp', 'inventory'].includes(name)) return;
+
+      const attr = attrNameMap[name.toLowerCase()];
+      if (attr && attr.isVariant) {
+        resolvedVariant.push({ attributeId: attr.id, value: String(value) });
+      }
+    });
+
+    // Check required variants
+    const resolvedVariantIds = resolvedVariant.map(r => r.attributeId);
+    const missingVariant = requiredVariant.filter(a => !resolvedVariantIds.includes(a.id));
+    if (missingVariant.length > 0) {
+      throw new AppError(`A variant is missing required attribute(s): ${missingVariant.map(a => a.name).join(', ')}`, 400, 'MISSING_ATTRIBUTES');
+    }
+
+    const sku = await generateUniqueSku(async (c) => !(await ProductModel.skuExistsForSeller(c, sellerId)));
+
+    preparedProducts.push({
+      price: v.price,
+      mrp: v.mrp,
+      stock: v.inventory,
+      sku,
+      resolvedVariant
+    });
+  }
+
+  // 5. Atomic Transaction
+  return prisma.$transaction(async (tx) => {
+    // a. Create Catalog
+    const catalog = await tx.catalog.create({
+      data: {
+        sellerId,
+        categoryId,
+        brandName: otherAttributes.brandName,
+        status: 'SUBMITTED'
+      }
+    });
+
+    // b. Create Catalog Attributes
+    if (resolvedCommon.length > 0) {
+      await tx.catalogAttributeValue.createMany({
+        data: resolvedCommon.map(r => ({
+          catalogId: catalog.id,
+          attributeId: r.attributeId,
+          value: r.value
+        }))
+      });
+    }
+
+    // c. Create Products (Variants)
+    for (const p of preparedProducts) {
+      const product = await tx.product.create({
+        data: {
+          catalogId: catalog.id,
+          productName: productInventory.productName, // Shared from inventory top-level
+          gstRate: productInventory.gstRate,
+          hsn: productInventory.hsn,
+          netWeight: productInventory.netWeight,
+          styleCode: productInventory.styleCode,
+          price: p.price,
+          mrp: p.mrp,
+          stock: p.stock,
+          sku: p.sku
+        }
+      });
+
+      // Product Attributes
+      if (p.resolvedVariant.length > 0) {
+        await tx.productAttributeValue.createMany({
+          data: p.resolvedVariant.map(rv => ({
+            productId: product.id,
+            attributeId: rv.attributeId,
+            value: rv.value
+          }))
+        });
+      }
+
+      // Product Images (Shared 4 images mapping to every variant)
+      const IMAGE_TYPES = ['FRONT', 'BACK', 'SIDE', 'ZOOMED'];
+      await tx.productImage.createMany({
+        data: images.map((url, index) => ({
+          productId: product.id,
+          imageType: IMAGE_TYPES[index] || 'OTHER', // Default to other if more than 4 images
+          url
+        }))
+      });
+    }
+
+    return tx.catalog.findUnique({
+      where: { id: catalog.id },
+      include: {
+        products: { include: { attributeValues: true, images: true } },
+        commonAttributes: true
+      }
+    });
+  });
+};
+
 module.exports = {
   createCatalog,
   listMyCatalogs,
@@ -289,4 +571,6 @@ module.exports = {
   discardCatalog,
   addDocument,
   deleteDocument,
+  createUnifiedCatalog,
+  submitFinalCatalog,
 };

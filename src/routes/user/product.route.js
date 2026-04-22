@@ -10,6 +10,12 @@ const router = Router();
 router.get('/', productController.list);
 
 /**
+ * GET /api/products/catalogs
+ * Approved catalogs for homepage/listing
+ */
+router.get('/catalogs', productController.listCatalogs);
+
+/**
  * GET /api/products/:id
  */
 router.get('/:id', productController.getOne);

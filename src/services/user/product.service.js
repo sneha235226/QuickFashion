@@ -84,4 +84,64 @@ const getProductDetails = async (productId) => {
     return product;
 };
 
-module.exports = { listProducts, getProductDetails };
+/**
+ * List catalogs available to users (Grouped view).
+ * ONLY show catalogs with status = APPROVED.
+ */
+const listCatalogs = async (filters = {}) => {
+    const {
+        categoryId,
+        search,
+        page = 1,
+        limit = 20,
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where = {
+        status: 'APPROVED',
+    };
+
+    if (categoryId) {
+        where.categoryId = categoryId;
+    }
+
+    if (search) {
+        where.OR = [
+            { brandName: { contains: search, mode: 'insensitive' } },
+            { products: { some: { productName: { contains: search, mode: 'insensitive' } } } },
+        ];
+    }
+
+    const [catalogs, total] = await Promise.all([
+        prisma.catalog.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+            include: {
+                category: { select: { name: true } },
+                products: {
+                    take: 1, // Get representative product
+                    include: {
+                        images: { where: { imageType: 'FRONT' }, take: 1 },
+                    },
+                },
+            },
+        }),
+        prisma.catalog.count({ where }),
+    ]);
+
+    return {
+        catalogs,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
+};
+
+module.exports = { listProducts, getProductDetails, listCatalogs };

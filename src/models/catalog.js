@@ -59,7 +59,7 @@ const countProducts = (catalogId) =>
 
 const findPendingForAdmin = () =>
   prisma.catalog.findMany({
-    where: { status: 'PENDING_APPROVAL' },
+    where: { status: 'SUBMITTED' },
     include: {
       seller: { select: { id: true, mobile: true, supplierProfile: { select: { storeName: true } } } },
       category: { select: { id: true, name: true } },

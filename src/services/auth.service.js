@@ -28,7 +28,7 @@ const sendOtp = async (mobileNumber, role) => {
 /**
  * verifyOtp — Verifies via MSG91, then handles login/signup logic.
  */
-const verifyOtp = async (mobileNumber, otp, role, requestId = null) => {
+const verifyOtp = async (mobileNumber, otp, role, requestId = null, userData = {}) => {
     console.log(`[AUTH_SERVICE] verifyOtp called: mobile=${mobileNumber}, otp=${otp}, role=${role}, requestId=${requestId}`);
     let otpRecord;
 
@@ -64,9 +64,9 @@ const verifyOtp = async (mobileNumber, otp, role, requestId = null) => {
 
     // 4. Role-specific logic
     if (role === 'USER') {
-        let user = await UserModel.findByMobile(mobileNumber);
+        const user = await UserModel.findByMobile(mobileNumber);
         if (!user) {
-            user = await UserModel.create(mobileNumber);
+            throw new AppError('User not found. Please register first.', 404, 'USER_NOT_FOUND');
         }
         tokens = jwt.generateUserTokens({ userId: user.id, mobile: user.mobileNumber });
         await UserModel.updateRefreshToken(user.id, tokens.refreshToken);

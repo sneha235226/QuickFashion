@@ -4,11 +4,35 @@
  *   { success, message, data?, nextStep?, meta? }
  */
 
+/**
+ * Recursively removes sensitive fields from an object or array.
+ */
+const stripSensitive = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+
+  // Handle Date objects
+  if (obj instanceof Date) return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(stripSensitive);
+  }
+
+  const sensitiveFields = ['password', 'passwordHash', 'refreshToken', 'OTP', 'otp'];
+  const newObj = {};
+
+  Object.keys(obj).forEach((key) => {
+    if (sensitiveFields.includes(key)) return;
+    newObj[key] = stripSensitive(obj[key]);
+  });
+
+  return newObj;
+};
+
 const success = (res, message, data = null, statusCode = 200, extras = {}) => {
   const payload = { success: true, message };
-  if (data !== null)          payload.data     = data;
-  if (extras.nextStep)        payload.nextStep = extras.nextStep;
-  if (extras.meta)            payload.meta     = extras.meta;
+  if (data !== null) payload.data = stripSensitive(data);
+  if (extras.nextStep) payload.nextStep = extras.nextStep;
+  if (extras.meta) payload.meta = extras.meta;
   return res.status(statusCode).json(payload);
 };
 

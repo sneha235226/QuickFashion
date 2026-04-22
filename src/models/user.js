@@ -6,9 +6,15 @@ const findByMobile = (mobileNumber) =>
 const findById = (id) =>
   prisma.user.findUnique({ where: { id } });
 
-const create = (mobileNumber) =>
+const create = (data) =>
   prisma.user.create({
-    data: { mobileNumber, isVerified: true },
+    data: {
+      mobileNumber: data.mobileNumber,
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      isVerified: true
+    },
   });
 
 const updateRefreshToken = (id, refreshToken) =>
