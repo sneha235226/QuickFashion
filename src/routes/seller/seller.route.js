@@ -145,10 +145,4 @@ router.get('/home', protect, requireApproved, profileCtrl.sellerHome);
 router.use('/categories', categoryRoutes);
 router.use('/catalog', catalogRoutes);
 
-/**
- * POST /api/seller/brand/upload
- * Separate brand document upload API
- */
-router.post('/brand/upload', protect, requireApproved, uploadDocument, catalogCtrl.uploadBrandStandalone);
-
 module.exports = router;

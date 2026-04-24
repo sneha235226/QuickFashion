@@ -99,8 +99,38 @@ const gstUpload = multer({
 }).single('gstDocument');
 
 
+// ─── Catalog unified upload (images + brand doc in one call) ──────────────────
+
+const catalogFilesUpload = multer({
+  storage: multerS3({
+    s3,
+    bucket: BUCKET,
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key: (_req, file, cb) => {
+      const unique = crypto.randomBytes(8).toString('hex');
+      const ext = path.extname(file.originalname).toLowerCase();
+      const folder = file.fieldname === 'document' ? 'documents' : 'products';
+      cb(null, `${folder}/${unique}${ext}`);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    if (file.fieldname === 'document') {
+      return documentFilter(_req, file, cb);
+    }
+    return imageFilter(_req, file, cb);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+}).fields([
+  { name: 'FRONT', maxCount: 1 },
+  { name: 'BACK', maxCount: 1 },
+  { name: 'SIDE', maxCount: 1 },
+  { name: 'ZOOMED', maxCount: 1 },
+  { name: 'document', maxCount: 1 },
+]);
+
 module.exports = {
   uploadDocument: wrapMulter(uploadDocument),
   uploadImages: wrapMulter(imageUpload),
   uploadGst: wrapMulter(gstUpload),
+  uploadCatalogFiles: wrapMulter(catalogFilesUpload),
 };

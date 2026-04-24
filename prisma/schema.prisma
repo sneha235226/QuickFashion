@@ -79,6 +79,9 @@ model User {
   isVerified   Boolean @default(false)
   refreshToken String?
 
+  cart      Cart?
+  wishlist  Wishlist[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -353,6 +356,8 @@ model Product {
 
   attributeValues ProductAttributeValue[]
   images          ProductImage[]
+  cartItems       CartItem[]
+  wishlistItems   Wishlist[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -399,4 +404,44 @@ model BrandDocument {
   createdAt DateTime @default(now())
 
   @@index([catalogId])
+}
+
+// ─── User Cart & Wishlist ─────────────────────────────────────────────────────
+
+model Cart {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items CartItem[]
+
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id        Int     @id @default(autoincrement())
+  cartId    Int
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+}
+
+model Wishlist {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
 }

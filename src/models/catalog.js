@@ -61,7 +61,7 @@ const findPendingForAdmin = () =>
   prisma.catalog.findMany({
     where: { status: 'SUBMITTED' },
     include: {
-      seller: { select: { id: true, mobile: true, supplierProfile: { select: { storeName: true } } } },
+      seller: { select: { id: true, mobile: true, businessDetails: { select: { businessName: true } } } },
       category: { select: { id: true, name: true } },
       _count: { select: { products: true, documents: true } },
     },
