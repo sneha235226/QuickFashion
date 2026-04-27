@@ -23,17 +23,22 @@ const createOrder = async (userId) => {
 
     // 3. Execution in Transaction
     return prisma.$transaction(async (tx) => {
-        // a. Create the Order
+        // a. Create the Order with full financial snapshot
         const order = await tx.order.create({
             data: {
                 userId,
-                totalAmount: cart.summary.grandTotal,
+                subTotal: cart.summary.totalBasePrice,
+                totalGst: cart.summary.totalGst,
+                totalDiscount: cart.summary.totalDiscount,
+                grandTotal: cart.summary.grandTotal,
                 status: 'PLACED',
                 items: {
                     create: cart.items.map((item) => ({
                         productId: item.productId,
                         quantity: item.quantity,
                         price: item.price,
+                        mrp: item.mrp,
+                        gstAmount: item.itemGst,
                     })),
                 },
             },
@@ -57,9 +62,22 @@ const createOrder = async (userId) => {
             where: { cartId: cart.cartId },
         });
 
-        return order;
+        // d. Prepare clean response
+        return {
+            ...order,
+            subTotal: Number(order.subTotal),
+            totalGst: Number(order.totalGst),
+            totalDiscount: Number(order.totalDiscount),
+            grandTotal: Number(order.grandTotal),
+            items: order.items.map(item => ({
+                ...item,
+                price: Number(item.price),
+                mrp: Number(item.mrp),
+                gstAmount: Number(item.gstAmount)
+            }))
+        };
     }, {
-        timeout: 10000, // 10s timeout for safety
+        timeout: 10000,
     });
 };
 
@@ -67,13 +85,39 @@ const createOrder = async (userId) => {
  * Get all orders for a user.
  */
 const getOrders = async (userId) => {
-    return prisma.order.findMany({
+    const orders = await prisma.order.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         include: {
             _count: { select: { items: true } },
+            items: {
+                take: 3, // preview of first few items
+                include: {
+                    product: {
+                        select: {
+                            productName: true,
+                            images: { take: 1 }
+                        }
+                    }
+                }
+            }
         },
     });
+
+    // Convert Decimals to Numbers for consistent API output
+    return orders.map(order => ({
+        ...order,
+        subTotal: Number(order.subTotal),
+        totalGst: Number(order.totalGst),
+        totalDiscount: Number(order.totalDiscount),
+        grandTotal: Number(order.grandTotal),
+        items: order.items.map(item => ({
+            ...item,
+            price: Number(item.price),
+            mrp: Number(item.mrp),
+            gstAmount: Number(item.gstAmount)
+        }))
+    }));
 };
 
 /**
@@ -90,6 +134,7 @@ const getOrderDetail = async (userId, orderId) => {
                             productName: true,
                             images: { take: 1 },
                             styleCode: true,
+                            sku: true
                         }
                     }
                 }
@@ -100,7 +145,20 @@ const getOrderDetail = async (userId, orderId) => {
     if (!order) throw new AppError('Order not found.', 404, 'NOT_FOUND');
     if (order.userId !== userId) throw new AppError('Access denied.', 403, 'FORBIDDEN');
 
-    return order;
+    // Convert Decimals to Numbers
+    return {
+        ...order,
+        subTotal: Number(order.subTotal),
+        totalGst: Number(order.totalGst),
+        totalDiscount: Number(order.totalDiscount),
+        grandTotal: Number(order.grandTotal),
+        items: order.items.map(item => ({
+            ...item,
+            price: Number(item.price),
+            mrp: Number(item.mrp),
+            gstAmount: Number(item.gstAmount)
+        }))
+    };
 };
 
 module.exports = {

@@ -17,8 +17,8 @@ model User {
   refreshToken String?
   updatedAt    DateTime   @updatedAt
   cart         Cart?
-  wishlist  Wishlist[]
-  orders    Order[]
+  orders       Order[]
+  wishlist     Wishlist[]
 
   @@index([mobileNumber])
   @@index([email])
@@ -277,11 +277,11 @@ model Product {
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
   cartItems       CartItem[]
+  orderItems      OrderItem[]
   catalog         Catalog                 @relation(fields: [catalogId], references: [id], onDelete: Cascade)
   attributeValues ProductAttributeValue[]
   images          ProductImage[]
   wishlistItems   Wishlist[]
-  orderItems      OrderItem[]
 
   @@index([catalogId])
   @@index([sku])
@@ -356,43 +356,45 @@ model Wishlist {
   @@index([userId])
 }
 
-enum OrderStatus {
-  PENDING
-  PLACED
-  SHIPPED
-  DELIVERED
-  CANCELLED
-}
-
 model Order {
-  id          Int         @id @default(autoincrement())
-  userId      Int
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  totalAmount Decimal     @db.Decimal(10, 2)
-  status      OrderStatus @default(PENDING)
-  
-  items       OrderItem[]
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  subTotal      Decimal     @db.Decimal(10, 2)
+  totalGst      Decimal     @db.Decimal(10, 2)
+  totalDiscount Decimal     @db.Decimal(10, 2)
+  grandTotal    Decimal     @db.Decimal(10, 2)
+  status        OrderStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         OrderItem[]
 
   @@index([userId])
   @@index([status])
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   orderId   Int
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId Int
-  product   Product @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Decimal @db.Decimal(10, 2) // price at the time of order
-
+  price     Decimal  @db.Decimal(10, 2)
+  mrp       Decimal  @db.Decimal(10, 2)
+  gstAmount Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
 
   @@index([orderId])
   @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING
+  PLACED
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 enum SellerType {

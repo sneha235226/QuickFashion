@@ -17,7 +17,7 @@ const stripSensitive = (obj) => {
     return obj.map(stripSensitive);
   }
 
-  const sensitiveFields = ['password', 'passwordHash', 'refreshToken', 'OTP', 'otp'];
+  const sensitiveFields = ['password', 'passwordHash', 'OTP', 'otp'];
   const newObj = {};
 
   Object.keys(obj).forEach((key) => {
