@@ -26,6 +26,7 @@ const loginSchema = Joi.object({
 // Marketplace routes
 const categoryRoutes = require('./category.route');
 const catalogRoutes = require('./catalog.route');
+const inventoryRoutes = require('./inventory.route');
 
 const router = Router();
 
@@ -144,5 +145,6 @@ router.get('/home', protect, requireApproved, profileCtrl.sellerHome);
 
 router.use('/categories', categoryRoutes);
 router.use('/catalog', catalogRoutes);
+router.use('/inventory', inventoryRoutes);
 
 module.exports = router;

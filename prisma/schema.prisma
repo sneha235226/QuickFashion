@@ -6,7 +6,394 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
+model User {
+  id           Int        @id @default(autoincrement())
+  password     String?
+  createdAt    DateTime   @default(now())
+  email        String?    @unique
+  isVerified   Boolean    @default(false)
+  mobileNumber String     @unique
+  name         String?
+  refreshToken String?
+  updatedAt    DateTime   @updatedAt
+  cart         Cart?
+  wishlist  Wishlist[]
+  orders    Order[]
+
+  @@index([mobileNumber])
+  @@index([email])
+}
+
+model SellerOnboarding {
+  id              Int              @id @default(autoincrement())
+  phone           String           @unique
+  stepCompleted   Int              @default(0)
+  basicDetails    Json?
+  businessDetails Json?
+  bankDetails     Json?
+  status          OnboardingStatus @default(PENDING_APPROVAL)
+  rejectionReason String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([phone])
+  @@index([status])
+}
+
+model Seller {
+  id              Int              @id @default(autoincrement())
+  name            String
+  email           String           @unique
+  mobile          String           @unique
+  password        String
+  sellerType      SellerType
+  sellerStatus    SellerStatus     @default(PENDING)
+  rejectionReason String?
+  refreshToken    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  addresses       Address[]
+  bankDetails     BankDetails?
+  businessDetails BusinessDetails?
+  catalogs        Catalog[]
+
+  @@index([mobile])
+  @@index([email])
+  @@index([sellerStatus])
+}
+
+model OTP {
+  id           Int      @id @default(autoincrement())
+  mobileNumber String
+  role         String
+  requestId    String
+  codeHash     String?
+  expiresAt    DateTime
+  verified     Boolean  @default(false)
+  used         Boolean  @default(false)
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([mobileNumber, role])
+  @@index([requestId])
+}
+
+model BusinessDetails {
+  id                Int      @id @default(autoincrement())
+  sellerId          Int      @unique
+  businessName      String
+  ownerName         String
+  productCategories String[]
+  storeType         String?
+  gstin             String?  @unique
+  gstDocumentUrl    String?
+  gstVerified       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  seller            Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([gstin])
+}
+
+model Address {
+  id          Int         @id @default(autoincrement())
+  sellerId    Int
+  fullName    String
+  phone       String
+  pincode     String
+  state       String
+  city        String
+  addressLine String
+  landmark    String?
+  latitude    Float?
+  longitude   Float?
+  isDefault   Boolean     @default(true)
+  type        AddressType @default(PICKUP)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  seller      Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+}
+
+model BankDetails {
+  id                     Int      @id @default(autoincrement())
+  sellerId               Int      @unique
+  accountHolderName      String
+  accountNumberEncrypted String
+  ifsc                   String
+  bankName               String
+  branch                 String
+  verified               Boolean  @default(false)
+  verificationRef        String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  seller                 Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  refreshToken String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Category {
+  id              Int                      @id @default(autoincrement())
+  name            String
+  slug            String                   @unique
+  parentId        Int?
+  isLeaf          Boolean                  @default(false)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  level           Int                      @default(1)
+  catalogs        Catalog[]
+  parent          Category?                @relation("CategoryTree", fields: [parentId], references: [id])
+  children        Category[]               @relation("CategoryTree")
+  attributes      CategoryAttribute[]
+  attributeGroups CategoryAttributeGroup[]
+
+  @@unique([name, parentId])
+  @@index([parentId])
+  @@index([isLeaf])
+}
+
+model CategoryAttributeGroup {
+  id         Int                 @id @default(autoincrement())
+  categoryId Int
+  name       String
+  sortOrder  Int                 @default(0)
+  createdAt  DateTime            @default(now())
+  attributes CategoryAttribute[]
+  category   Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+}
+
+model CategoryAttribute {
+  id               Int                     @id @default(autoincrement())
+  categoryId       Int
+  groupId          Int?
+  name             String
+  type             AttributeType
+  isRequired       Boolean                 @default(false)
+  isVariant        Boolean                 @default(true)
+  groupType        AttributeGroup          @default(PRODUCT_INVENTORY)
+  createdAt        DateTime                @default(now())
+  options          AttributeOption[]
+  catalogValues    CatalogAttributeValue[]
+  category         Category                @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  group            CategoryAttributeGroup? @relation(fields: [groupId], references: [id])
+  values           ProductAttributeValue[]
+  sizeTableColumns SizeTableColumn[]
+
+  @@index([categoryId])
+  @@index([groupId])
+}
+
+model AttributeOption {
+  id          Int               @id @default(autoincrement())
+  attributeId Int
+  value       String
+  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@index([attributeId])
+}
+
+model SizeTableColumn {
+  id          Int                     @id @default(autoincrement())
+  attributeId Int
+  name        String
+  unit        String?
+  inputType   String                  @default("SELECT")
+  isRequired  Boolean                 @default(true)
+  sortOrder   Int                     @default(0)
+  createdAt   DateTime                @default(now())
+  attribute   CategoryAttribute       @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  options     SizeTableColumnOption[]
+
+  @@index([attributeId])
+}
+
+model SizeTableColumnOption {
+  id       Int             @id @default(autoincrement())
+  columnId Int
+  value    String
+  column   SizeTableColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@index([columnId])
+}
+
+model CatalogAttributeValue {
+  id          Int               @id @default(autoincrement())
+  catalogId   Int
+  attributeId Int
+  value       String
+  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id])
+  catalog     Catalog           @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, attributeId])
+  @@index([catalogId])
+}
+
+model Catalog {
+  id               Int                     @id @default(autoincrement())
+  sellerId         Int
+  categoryId       Int
+  brandName        String?
+  status           CatalogStatus           @default(DRAFT)
+  rejectionNote    String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  documents        BrandDocument[]
+  category         Category                @relation(fields: [categoryId], references: [id])
+  seller           Seller                  @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  commonAttributes CatalogAttributeValue[]
+  products         Product[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Product {
+  id              Int                     @id @default(autoincrement())
+  catalogId       Int
+  productName     String?
+  price           Decimal                 @db.Decimal(10, 2)
+  mrp             Decimal?                @db.Decimal(10, 2)
+  returnPrice     Decimal?                @db.Decimal(10, 2)
+  stock           Int
+  sku             String
+  hsn             String?
+  gstRate         Decimal?                @db.Decimal(5, 2)
+  netWeight       Decimal?                @db.Decimal(8, 3)
+  styleCode       String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  cartItems       CartItem[]
+  catalog         Catalog                 @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  attributeValues ProductAttributeValue[]
+  images          ProductImage[]
+  wishlistItems   Wishlist[]
+  orderItems      OrderItem[]
+
+  @@index([catalogId])
+  @@index([sku])
+}
+
+model ProductAttributeValue {
+  id          Int               @id @default(autoincrement())
+  productId   Int
+  attributeId Int
+  value       String
+  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id])
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeId])
+  @@index([productId])
+}
+
+model ProductImage {
+  id        Int       @id @default(autoincrement())
+  productId Int
+  imageType ImageType
+  url       String
+  createdAt DateTime  @default(now())
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, imageType])
+  @@index([productId])
+}
+
+model BrandDocument {
+  id           Int          @id @default(autoincrement())
+  catalogId    Int
+  documentUrl  String
+  documentType DocumentType
+  createdAt    DateTime     @default(now())
+  catalog      Catalog      @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+}
+
+model Wishlist {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+enum OrderStatus {
+  PENDING
+  PLACED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalAmount Decimal     @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+  
+  items       OrderItem[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2) // price at the time of order
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
 
 enum SellerType {
   MANUFACTURER
@@ -55,11 +442,10 @@ enum DocumentType {
   OTHER
 }
 
-// Fixed UI group for seller catalog form (Meesho-style 3 sections)
 enum AttributeGroup {
-  PRODUCT_INVENTORY // Group 1 — variant table columns
-  PRODUCT_DETAILS // Group 2 — common product details
-  OTHER_ATTRIBUTES // Group 3 — other common attributes + brand
+  PRODUCT_INVENTORY
+  PRODUCT_DETAILS
+  OTHER_ATTRIBUTES
 }
 
 enum ImageType {
@@ -67,413 +453,4 @@ enum ImageType {
   BACK
   SIDE
   ZOOMED
-}
-
-// ─── Seller + onboarding models ───────────────────────────────────
-
-model User {
-  id           Int     @id @default(autoincrement())
-  name         String?
-  email        String? @unique
-  mobileNumber String  @unique
-  password     String?
-  isVerified   Boolean @default(false)
-  refreshToken String?
-
-  cart      Cart?
-  wishlist  Wishlist[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([mobileNumber])
-  @@index([email])
-}
-
-model SellerOnboarding {
-  id              Int              @id @default(autoincrement())
-  phone           String           @unique
-  stepCompleted   Int              @default(0) // 1, 2, 3
-  basicDetails    Json? // store firstName, lastName, gender, phone, email, password
-  businessDetails Json? // store businessName, ownerName, productCategories, businessType, storeType, gstNumber, gstDocument, address
-  bankDetails     Json? // accountHolderName, accountNumber, IFSC, bankName, branchName
-  status          OnboardingStatus @default(PENDING_APPROVAL) // PENDING_APPROVAL, APPROVED, REJECTED
-  rejectionReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([phone])
-  @@index([status])
-}
-
-model Seller {
-  id         Int        @id @default(autoincrement())
-  name       String
-  email      String     @unique
-  mobile     String     @unique
-  password   String
-  sellerType SellerType
-
-  sellerStatus    SellerStatus @default(PENDING)
-  rejectionReason String?
-
-  refreshToken String?
-
-  businessDetails BusinessDetails?
-  addresses       Address[]
-  bankDetails     BankDetails?
-  catalogs        Catalog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([mobile])
-  @@index([email])
-  @@index([sellerStatus])
-}
-
-model OTP {
-  id           Int      @id @default(autoincrement())
-  mobileNumber String
-  role         String // "USER" | "SELLER"
-  requestId    String // from Cashfree
-  codeHash     String? // for manual verify if needed
-  expiresAt    DateTime
-  verified     Boolean  @default(false)
-  used         Boolean  @default(false)
-  attempts     Int      @default(0)
-
-  createdAt DateTime @default(now())
-
-  @@index([mobileNumber, role])
-  @@index([requestId])
-}
-
-model BusinessDetails {
-  id       Int    @id @default(autoincrement())
-  sellerId Int    @unique
-  seller   Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-
-  businessName      String
-  ownerName         String
-  productCategories String[] // e.g. ["Electronics", "Fashion"]
-  storeType         String? // e.g. "wholesale", "retail"
-  gstin             String?  @unique
-  gstDocumentUrl    String? // From AWS S3
-  gstVerified       Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([gstin])
-}
-
-model Address {
-  id       Int    @id @default(autoincrement())
-  sellerId Int
-  seller   Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-
-  fullName    String
-  phone       String
-  pincode     String
-  state       String
-  city        String
-  addressLine String
-  landmark    String?
-  latitude    Float?
-  longitude   Float?
-  isDefault   Boolean     @default(true)
-  type        AddressType @default(PICKUP)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([sellerId])
-}
-
-model BankDetails {
-  id       Int    @id @default(autoincrement())
-  sellerId Int    @unique
-  seller   Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-
-  accountHolderName      String
-  accountNumberEncrypted String
-  ifsc                   String
-  bankName               String
-  branch                 String
-  verified               Boolean @default(false)
-  verificationRef        String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// SupplierProfile is removed as it's consolidated or replaced by Seller/BusinessDetails logic
-
-model Admin {
-  id           Int     @id @default(autoincrement())
-  username     String  @unique
-  email        String  @unique
-  passwordHash String
-  refreshToken String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([email])
-}
-
-// ─── Category system ──────────────────────────────────────────────────────────
-
-model Category {
-  id       Int     @id @default(autoincrement())
-  name     String
-  slug     String  @unique
-  parentId Int?
-  isLeaf   Boolean @default(false)
-  level    Int     @default(1)
-
-  parent          Category?                @relation("CategoryTree", fields: [parentId], references: [id])
-  children        Category[]               @relation("CategoryTree")
-  attributes      CategoryAttribute[]
-  attributeGroups CategoryAttributeGroup[]
-  catalogs        Catalog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([name, parentId])
-  @@index([parentId])
-  @@index([isLeaf])
-}
-
-
-model CategoryAttributeGroup {
-  id         Int      @id @default(autoincrement())
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  name      String // e.g. "Product Details", "Size & Inventory"
-  sortOrder Int    @default(0)
-
-  attributes CategoryAttribute[]
-
-  createdAt DateTime @default(now())
-
-  @@index([categoryId])
-}
-
-model CategoryAttribute {
-  id         Int      @id @default(autoincrement())
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  groupId Int?
-  group   CategoryAttributeGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-
-  name       String
-  type       AttributeType
-  isRequired Boolean        @default(false)
-  isVariant  Boolean        @default(true) // true = per-product column, false = catalog-level field
-  groupType  AttributeGroup @default(PRODUCT_INVENTORY) // which UI section this belongs to
-
-  options          AttributeOption[]
-  sizeTableColumns SizeTableColumn[]
-  values           ProductAttributeValue[]
-  catalogValues    CatalogAttributeValue[]
-
-  createdAt DateTime @default(now())
-
-  @@index([categoryId])
-  @@index([groupId])
-}
-
-model AttributeOption {
-  id          Int               @id @default(autoincrement())
-  attributeId Int
-  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-
-  value String
-
-  @@index([attributeId])
-}
-
-// Defines a column in the size measurement grid for a MULTI_SELECT attribute
-model SizeTableColumn {
-  id          Int               @id @default(autoincrement())
-  attributeId Int
-  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-
-  name        String            // e.g. "Bust Size"
-  unit        String?           // e.g. "INCH", "CM", "METER"
-  inputType   String            @default("SELECT") // "SELECT" | "TEXT" | "NUMBER"
-  isRequired  Boolean           @default(true)
-  sortOrder   Int               @default(0)
-
-  options     SizeTableColumnOption[]
-
-  createdAt   DateTime @default(now())
-
-  @@index([attributeId])
-}
-
-// Dropdown options for a SELECT-type SizeTableColumn
-model SizeTableColumnOption {
-  id       Int             @id @default(autoincrement())
-  columnId Int
-  column   SizeTableColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
-
-  value    String
-
-  @@index([columnId])
-}
-
-// ─── Catalog-level common attribute values ────────────────────────────────────
-
-model CatalogAttributeValue {
-  id          Int               @id @default(autoincrement())
-  catalogId   Int
-  catalog     Catalog           @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-  attributeId Int
-  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id])
-
-  value String
-
-  @@unique([catalogId, attributeId])
-  @@index([catalogId])
-}
-
-// ─── Catalog + Product system ─────────────────────────────────────────────────
-
-model Catalog {
-  id         Int      @id @default(autoincrement())
-  sellerId   Int
-  seller     Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  brandName     String? // optional — seller types it manually (Group 3)
-  status        CatalogStatus @default(DRAFT)
-  rejectionNote String?
-
-  products         Product[]
-  documents        BrandDocument[]
-  commonAttributes CatalogAttributeValue[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([sellerId])
-  @@index([categoryId])
-  @@index([status])
-}
-
-model Product {
-  id        Int     @id @default(autoincrement())
-  catalogId Int
-  catalog   Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-
-  // Static fields (Group 1 — Product, Size and Inventory)
-  productName String?
-  price       Decimal  @db.Decimal(10, 2) // Meesho selling price
-  mrp         Decimal? @db.Decimal(10, 2) // Maximum retail price
-  returnPrice Decimal? @db.Decimal(10, 2) // Wrong/defective return price
-  stock       Int
-  sku         String // backend-generated, never from frontend
-  hsn         String?
-  gstRate     Decimal? @db.Decimal(5, 2)
-  netWeight   Decimal? @db.Decimal(8, 3) // Net weight in grams
-  styleCode   String? // Style code / Product ID
-
-  attributeValues ProductAttributeValue[]
-  images          ProductImage[]
-  cartItems       CartItem[]
-  wishlistItems   Wishlist[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([catalogId])
-  @@index([sku])
-}
-
-model ProductAttributeValue {
-  id          Int               @id @default(autoincrement())
-  productId   Int
-  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  attributeId Int
-  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id])
-
-  value String
-
-  @@unique([productId, attributeId])
-  @@index([productId])
-}
-
-model ProductImage {
-  id        Int     @id @default(autoincrement())
-  productId Int
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  imageType ImageType
-  url       String // S3 public URL
-
-  createdAt DateTime @default(now())
-
-  @@unique([productId, imageType])
-  @@index([productId])
-}
-
-model BrandDocument {
-  id        Int     @id @default(autoincrement())
-  catalogId Int
-  catalog   Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-
-  documentUrl  String
-  documentType DocumentType
-
-  createdAt DateTime @default(now())
-
-  @@index([catalogId])
-}
-
-// ─── User Cart & Wishlist ─────────────────────────────────────────────────────
-
-model Cart {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  items CartItem[]
-
-  updatedAt DateTime @updatedAt
-}
-
-model CartItem {
-  id        Int     @id @default(autoincrement())
-  cartId    Int
-  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId Int
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity  Int     @default(1)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([cartId, productId])
-  @@index([cartId])
-}
-
-model Wishlist {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId Int
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, productId])
-  @@index([userId])
 }
