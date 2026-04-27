@@ -37,6 +37,7 @@ enum AttributeType {
   TEXT
   NUMBER
   SELECT
+  MULTI_SELECT
 }
 
 enum CatalogStatus {
@@ -277,9 +278,10 @@ model CategoryAttribute {
   isVariant  Boolean        @default(true) // true = per-product column, false = catalog-level field
   groupType  AttributeGroup @default(PRODUCT_INVENTORY) // which UI section this belongs to
 
-  options       AttributeOption[]
-  values        ProductAttributeValue[]
-  catalogValues CatalogAttributeValue[]
+  options          AttributeOption[]
+  sizeTableColumns SizeTableColumn[]
+  values           ProductAttributeValue[]
+  catalogValues    CatalogAttributeValue[]
 
   createdAt DateTime @default(now())
 
@@ -295,6 +297,36 @@ model AttributeOption {
   value String
 
   @@index([attributeId])
+}
+
+// Defines a column in the size measurement grid for a MULTI_SELECT attribute
+model SizeTableColumn {
+  id          Int               @id @default(autoincrement())
+  attributeId Int
+  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  name        String            // e.g. "Bust Size"
+  unit        String?           // e.g. "INCH", "CM", "METER"
+  inputType   String            @default("SELECT") // "SELECT" | "TEXT" | "NUMBER"
+  isRequired  Boolean           @default(true)
+  sortOrder   Int               @default(0)
+
+  options     SizeTableColumnOption[]
+
+  createdAt   DateTime @default(now())
+
+  @@index([attributeId])
+}
+
+// Dropdown options for a SELECT-type SizeTableColumn
+model SizeTableColumnOption {
+  id       Int             @id @default(autoincrement())
+  columnId Int
+  column   SizeTableColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  value    String
+
+  @@index([columnId])
 }
 
 // ─── Catalog-level common attribute values ────────────────────────────────────

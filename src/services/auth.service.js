@@ -66,7 +66,8 @@ const verifyOtp = async (mobileNumber, otp, role, requestId = null, userData = {
     if (role === 'USER') {
         const user = await UserModel.findByMobile(mobileNumber);
         if (!user) {
-            throw new AppError('User not found. Please register first.', 404, 'USER_NOT_FOUND');
+            // Success for registration flow
+            return { isNewUser: true, mobile: mobileNumber };
         }
         tokens = jwt.generateUserTokens({ userId: user.id, mobile: user.mobileNumber });
         await UserModel.updateRefreshToken(user.id, tokens.refreshToken);

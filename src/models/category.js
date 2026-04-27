@@ -239,7 +239,13 @@ const findAttributesByCategoryId = async (categoryId) => {
 const findAttributesGroupedForSeller = async (categoryId) => {
   const attributes = await prisma.categoryAttribute.findMany({
     where: { categoryId },
-    include: { options: { orderBy: { id: 'asc' } } },
+    include: { 
+      options: { orderBy: { id: 'asc' } },
+      sizeTableColumns: {
+        orderBy: { sortOrder: 'asc' },
+        include: { options: { orderBy: { id: 'asc' } } },
+      },
+    },
     orderBy: { id: 'asc' },
   });
 
@@ -276,14 +282,26 @@ const findAttributesGroupedForSeller = async (categoryId) => {
 const findAttributesFlatByCategoryId = (categoryId) =>
   prisma.categoryAttribute.findMany({
     where: { categoryId },
-    include: { options: true },
+    include: { 
+      options: true,
+      sizeTableColumns: {
+        orderBy: { sortOrder: 'asc' },
+        include: { options: { orderBy: { id: 'asc' } } },
+      },
+    },
     orderBy: { id: 'asc' },
   });
 
 const findAttributeById = (id) =>
   prisma.categoryAttribute.findUnique({
     where: { id },
-    include: { options: true },
+    include: { 
+      options: true,
+      sizeTableColumns: {
+        orderBy: { sortOrder: 'asc' },
+        include: { options: { orderBy: { id: 'asc' } } },
+      },
+    },
   });
 
 const createAttribute = (categoryId, data) =>
@@ -318,6 +336,46 @@ const createOptions = (attributeId, values) =>
     skipDuplicates: true,
   });
 
+// ─── SizeTableColumn ─────────────────────────────────────────────────────────
+
+const findSizeColumnsByAttributeId = (attributeId) =>
+  prisma.sizeTableColumn.findMany({
+    where: { attributeId },
+    include: { options: { orderBy: { id: 'asc' } } },
+    orderBy: { sortOrder: 'asc' },
+  });
+
+const findSizeColumnById = (id) =>
+  prisma.sizeTableColumn.findUnique({
+    where: { id },
+    include: { options: { orderBy: { id: 'asc' } } },
+  });
+
+const createSizeColumn = (attributeId, data) =>
+  prisma.sizeTableColumn.create({
+    data: { attributeId, ...data },
+    include: { options: true },
+  });
+
+const createSizeColumnOptions = (columnId, values) =>
+  prisma.sizeTableColumnOption.createMany({
+    data: values.map((value) => ({ columnId, value })),
+    skipDuplicates: true,
+  });
+
+const deleteSizeColumnOptions = (columnId) =>
+  prisma.sizeTableColumnOption.deleteMany({ where: { columnId } });
+
+const updateSizeColumn = (id, data) =>
+  prisma.sizeTableColumn.update({
+    where: { id },
+    data,
+    include: { options: true },
+  });
+
+const deleteSizeColumn = (id) =>
+  prisma.sizeTableColumn.delete({ where: { id } });
+
 module.exports = {
   findRoots,
   findByParentId,
@@ -325,6 +383,7 @@ module.exports = {
   findBySlug,
   create,
   update,
+  remove,
   createGroup,
   findGroupById,
   updateGroup,
@@ -338,4 +397,12 @@ module.exports = {
   deleteAttribute,
   addOption,
   createOptions,
+  // Size table columns
+  findSizeColumnsByAttributeId,
+  findSizeColumnById,
+  createSizeColumn,
+  createSizeColumnOptions,
+  deleteSizeColumnOptions,
+  updateSizeColumn,
+  deleteSizeColumn,
 };

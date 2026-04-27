@@ -21,4 +21,10 @@ router.post('/:id/attributes', categoryCtrl.addAttribute);
 router.patch('/:id/attributes/:attributeId', categoryCtrl.updateAttribute);
 router.delete('/:id/attributes/:attributeId', categoryCtrl.deleteAttribute);
 
+// ─── Size Table Columns (for MULTI_SELECT attributes) ─────────────────────────
+
+router.post('/:id/attributes/:attributeId/size-columns', categoryCtrl.addSizeColumn);
+router.patch('/:id/attributes/:attributeId/size-columns/:columnId', categoryCtrl.updateSizeColumn);
+router.delete('/:id/attributes/:attributeId/size-columns/:columnId', categoryCtrl.deleteSizeColumn);
+
 module.exports = router;

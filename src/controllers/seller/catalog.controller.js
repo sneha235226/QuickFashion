@@ -122,10 +122,37 @@ const submitForReview = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/seller/catalog/upload-image
+ * Standalone image upload. Returns the S3 location.
+ */
+const uploadImage = async (req, res, next) => {
+  try {
+    const imageUrls = {};
+    if (req.files) {
+      const IMAGE_FIELDS = ['FRONT', 'BACK', 'SIDE', 'ZOOMED'];
+      for (const field of IMAGE_FIELDS) {
+        if (req.files[field] && req.files[field][0]) {
+          imageUrls[field] = req.files[field][0].location;
+        }
+      }
+    }
+
+    if (Object.keys(imageUrls).length === 0) {
+      throw new AppError('No images uploaded.', 400, 'NO_IMAGES');
+    }
+
+    return response.success(res, 'Image(s) uploaded.', { imageUrls });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   getOne,
   discard,
   saveDraft,
   submitForReview,
+  uploadImage,
 };

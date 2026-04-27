@@ -68,7 +68,7 @@ const addAttribute = async (categoryId, { name, type, isRequired, isVariant, gro
   });
 
   // Insert all options in a single round-trip (no N+1)
-  if (type === 'SELECT' && options && options.length > 0) {
+  if (['SELECT', 'MULTI_SELECT'].includes(type) && options && options.length > 0) {
     await CategoryModel.createOptions(attribute.id, options);
   }
 
@@ -86,9 +86,9 @@ const updateAttribute = async (attributeId, { name, type, isRequired, isVariant,
 
   const newType = type ?? attribute.type;
 
-  if (newType === 'SELECT' && attribute.type !== 'SELECT') {
+  if (['SELECT', 'MULTI_SELECT'].includes(newType) && !['SELECT', 'MULTI_SELECT'].includes(attribute.type)) {
     if (!options || options.length === 0) {
-      throw new AppError('Provide at least one option when converting to SELECT.', 400, 'OPTIONS_REQUIRED');
+      throw new AppError('Provide at least one option when converting to a selection type.', 400, 'OPTIONS_REQUIRED');
     }
   }
 
@@ -105,16 +105,16 @@ const updateAttribute = async (attributeId, { name, type, isRequired, isVariant,
       },
     });
 
-    // DELETE existing options when type leaves SELECT or when a new options array is provided
+    // DELETE existing options when type leaves a selection type or when a new options array is provided
     if (
-      (attribute.type === 'SELECT' && newType !== 'SELECT') ||
-      (newType === 'SELECT' && options && options.length > 0)
+      (['SELECT', 'MULTI_SELECT'].includes(attribute.type) && !['SELECT', 'MULTI_SELECT'].includes(newType)) ||
+      (['SELECT', 'MULTI_SELECT'].includes(newType) && options && options.length > 0)
     ) {
       await tx.attributeOption.deleteMany({ where: { attributeId } });
     }
 
     // INSERT replacement options
-    if (newType === 'SELECT' && options && options.length > 0) {
+    if (['SELECT', 'MULTI_SELECT'].includes(newType) && options && options.length > 0) {
       await tx.attributeOption.createMany({
         data: options.map((value) => ({ attributeId, value })),
       });
@@ -124,11 +124,77 @@ const updateAttribute = async (attributeId, { name, type, isRequired, isVariant,
   return CategoryModel.findAttributeById(attributeId);
 };
 
+
 const deleteAttribute = async (attributeId) => {
   const attribute = await CategoryModel.findAttributeById(attributeId);
   if (!attribute) throw new AppError('Attribute not found.', 404, 'NOT_FOUND');
   return CategoryModel.deleteAttribute(attributeId);
 };
+
+// ─── Size Table Columns ────────────────────────────────────────────────────────
+
+/**
+ * Add a measurement column to a MULTI_SELECT attribute (e.g. "Bust Size" for "Size").
+ */
+const addSizeColumn = async (attributeId, { name, unit, inputType, isRequired, sortOrder, options }) => {
+  const attribute = await CategoryModel.findAttributeById(attributeId);
+  if (!attribute) throw new AppError('Attribute not found.', 404, 'NOT_FOUND');
+  if (attribute.type !== 'MULTI_SELECT') throw new AppError('Size columns can only be added to MULTI_SELECT attributes.', 400, 'NOT_MULTI_SELECT');
+
+  const column = await CategoryModel.createSizeColumn(attributeId, {
+    name,
+    unit: unit || null,
+    inputType: inputType || 'SELECT',
+    isRequired: isRequired ?? true,
+    sortOrder: sortOrder ?? 0,
+  });
+
+  if (['SELECT'].includes(column.inputType) && options && options.length > 0) {
+    await CategoryModel.createSizeColumnOptions(column.id, options);
+  }
+
+  return CategoryModel.findSizeColumnById(column.id);
+};
+
+/**
+ * Update an existing size column.
+ */
+const updateSizeColumn = async (columnId, { name, unit, inputType, isRequired, sortOrder, options }) => {
+  const column = await CategoryModel.findSizeColumnById(columnId);
+  if (!column) throw new AppError('Size column not found.', 404, 'NOT_FOUND');
+
+  await CategoryModel.updateSizeColumn(columnId, {
+    ...(name !== undefined && { name }),
+    ...(unit !== undefined && { unit }),
+    ...(inputType !== undefined && { inputType }),
+    ...(isRequired !== undefined && { isRequired }),
+    ...(sortOrder !== undefined && { sortOrder }),
+  });
+
+  // Replace options if provided
+  if (options !== undefined) {
+    await CategoryModel.deleteSizeColumnOptions(columnId);
+    if (options.length > 0) {
+      await CategoryModel.createSizeColumnOptions(columnId, options);
+    }
+  }
+
+  return CategoryModel.findSizeColumnById(columnId);
+};
+
+/**
+ * Delete a size column (cascades options).
+ */
+const deleteSizeColumn = async (columnId) => {
+  const column = await CategoryModel.findSizeColumnById(columnId);
+  if (!column) throw new AppError('Size column not found.', 404, 'NOT_FOUND');
+  return CategoryModel.deleteSizeColumn(columnId);
+};
+
+/**
+ * Get all size columns for an attribute.
+ */
+const getSizeColumns = (attributeId) => CategoryModel.findSizeColumnsByAttributeId(attributeId);
 
 module.exports = {
   listCategories,
@@ -136,9 +202,14 @@ module.exports = {
   createCategory,
   updateCategory,
   listByParent,
+  deleteCategory,
   getAttributesByCategory,
   addAttribute,
   updateAttribute,
   deleteAttribute,
-  deleteCategory,
+  // Size columns
+  addSizeColumn,
+  updateSizeColumn,
+  deleteSizeColumn,
+  getSizeColumns,
 };

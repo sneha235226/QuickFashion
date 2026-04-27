@@ -46,12 +46,7 @@ const sendOtp = async (req, res, next) => {
         const { error, value } = sendOtpSchema.validate(req.body);
         if (error) return next(new AppError(error.details[0].message, 400, 'VALIDATION_ERROR'));
 
-        // Optional: Check if user exists before sending OTP for login
-        const user = await UserModel.findByMobile(value.mobile);
-        if (!user) {
-            return next(new AppError('User not found. Please register first.', 404, 'USER_NOT_FOUND'));
-        }
-
+        // Send OTP regardless of user existence to support both Login and Registration
         const { requestId } = await authService.sendOtp(value.mobile, 'USER');
         return response.success(res, `OTP sent to ${value.mobile}.`, { requestId });
     } catch (err) {

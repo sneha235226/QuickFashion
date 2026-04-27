@@ -154,7 +154,52 @@ const deleteAttribute = async (req, res, next) => {
   }
 };
 
+// ─── Size Table Columns ───────────────────────────────────────────────────────
+
+/**
+ * POST /api/admin/categories/:id/attributes/:attributeId/size-columns
+ */
+const addSizeColumn = async (req, res, next) => {
+  try {
+    const column = await categoryService.addSizeColumn(
+      parseInt(req.params.attributeId, 10),
+      req.body
+    );
+    return response.created(res, 'Size column added.', { column });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/admin/categories/:id/attributes/:attributeId/size-columns/:columnId
+ */
+const updateSizeColumn = async (req, res, next) => {
+  try {
+    const column = await categoryService.updateSizeColumn(
+      parseInt(req.params.columnId, 10),
+      req.body
+    );
+    return response.success(res, 'Size column updated.', { column });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/admin/categories/:id/attributes/:attributeId/size-columns/:columnId
+ */
+const deleteSizeColumn = async (req, res, next) => {
+  try {
+    await categoryService.deleteSizeColumn(parseInt(req.params.columnId, 10));
+    return response.success(res, 'Size column deleted.');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list, getOne, create, update, remove,
   listAttributes, addAttribute, updateAttribute, deleteAttribute,
+  addSizeColumn, updateSizeColumn, deleteSizeColumn,
 };

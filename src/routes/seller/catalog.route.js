@@ -12,6 +12,7 @@ router.use(protect, requireApproved);
 
 router.post('/save-draft', uploadCatalogFiles, catalogCtrl.saveDraft);       // Save as DRAFT
 router.post('/submit', uploadCatalogFiles, catalogCtrl.submitForReview);     // Submit for admin approval
+router.post('/upload-image', uploadCatalogFiles, catalogCtrl.uploadImage);   // Standalone image upload for preview
 router.post('/:catalogId/discard', catalogCtrl.discard);                     // Discard catalog
 
 // ─── Catalog Queries ──────────────────────────────────────────────────────────
