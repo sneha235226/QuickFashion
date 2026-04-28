@@ -22,6 +22,7 @@ const productInputSchema = Joi.object({
   }),
   netWeight: Joi.number().positive().precision(3).optional(),
   styleCode: Joi.string().trim().max(100).optional(),
+  sku: Joi.string().trim().max(100).optional().allow(null, ''),
   sizeDetails: Joi.object().optional(),
   variantAttributes: Joi.array().items(attributeValueSchema).default([]),
 });

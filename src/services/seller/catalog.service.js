@@ -121,7 +121,7 @@ const processUnifiedCatalog = async (sellerId, payload, imageUrls = [], docUrl =
       ? await resolveAttributeValues(categoryId, p.variantAttributes, 'variant')
       : [];
 
-    const sku = await generateUniqueSku(async (c) => !(await ProductModel.skuExistsForSeller(c, sellerId)));
+    const sku = (p.sku && p.sku.trim()) || await generateUniqueSku(async (c) => !(await ProductModel.skuExistsForSeller(c, sellerId)));
 
     preparedProducts.push({
       productName: p.productName ?? null,

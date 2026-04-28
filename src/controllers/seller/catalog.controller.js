@@ -55,7 +55,7 @@ const _parseMultipartCatalog = (req) => {
     }
   }
   // Case 2: Body itself is the payload (Typical if client sends JSON + files differently or no data wrapper)
-  else if (req.body.categoryId) {
+  else if (req.body.categoryId || req.body.catalogId) {
     payload = req.body;
   }
   else {
