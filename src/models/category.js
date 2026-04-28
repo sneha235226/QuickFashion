@@ -66,14 +66,24 @@ const create = async (data) => {
     name: data.name,
     slug,
     level,
-    isLeaf: level === 4,
+    isLeaf: level === 4, // only the deepest level (4) is a leaf by default
   };
 
   if (parentId) {
     createData.parent = { connect: { id: parentId } };
   }
 
-  return prisma.category.create({ data: createData });
+  const newCategory = await prisma.category.create({ data: createData });
+
+  // When a new child is added, the parent is no longer a leaf
+  if (parentId) {
+    await prisma.category.update({
+      where: { id: parentId },
+      data: { isLeaf: false },
+    });
+  }
+
+  return newCategory;
 };
 
 
@@ -173,7 +183,18 @@ const remove = async (id) => {
     throw new AppError('Cannot delete category with associated products (catalogs).', 400, 'HAS_PRODUCTS');
   }
 
-  return prisma.category.delete({ where: { id } });
+  await prisma.category.delete({ where: { id } });
+
+  // If this was the last child, restore parent to leaf status
+  if (category.parentId) {
+    const siblingCount = await prisma.category.count({ where: { parentId: category.parentId } });
+    if (siblingCount === 0) {
+      await prisma.category.update({
+        where: { id: category.parentId },
+        data: { isLeaf: true },
+      });
+    }
+  }
 };
 
 // ─── CategoryAttributeGroup ───────────────────────────────────────────────────

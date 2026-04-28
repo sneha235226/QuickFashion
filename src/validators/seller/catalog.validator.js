@@ -22,11 +22,12 @@ const productInputSchema = Joi.object({
   }),
   netWeight: Joi.number().positive().precision(3).optional(),
   styleCode: Joi.string().trim().max(100).optional(),
+  sizeDetails: Joi.object().optional(),
   variantAttributes: Joi.array().items(attributeValueSchema).default([]),
 });
 
-// Unified catalog schema used by saveDraft / submitForReview
 const unifiedCatalogSchema = Joi.object({
+  catalogId: Joi.number().integer().positive().optional(),
   categoryId: Joi.number().integer().positive().required(),
   brandName: Joi.string().trim().min(1).max(200).optional(),
   commonAttributes: Joi.array().items(attributeValueSchema).default([]),

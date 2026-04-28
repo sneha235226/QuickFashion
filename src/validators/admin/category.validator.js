@@ -22,8 +22,8 @@ const addAttributeSchema = Joi.object({
   name: Joi.string().trim().min(1).max(100).required().messages({
     'any.required': 'Attribute name is required.',
   }),
-  type: Joi.string().valid('TEXT', 'NUMBER', 'SELECT').required().messages({
-    'any.only': 'Attribute type must be TEXT, NUMBER, or SELECT.',
+  type: Joi.string().valid('TEXT', 'NUMBER', 'SELECT', 'MULTI_SELECT').required().messages({
+    'any.only': 'Attribute type must be TEXT, NUMBER, SELECT, or MULTI_SELECT.',
     'any.required': 'Attribute type is required.',
   }),
   isRequired: Joi.boolean().default(false),
@@ -31,16 +31,14 @@ const addAttributeSchema = Joi.object({
   groupType: Joi.string().valid('PRODUCT_INVENTORY', 'PRODUCT_DETAILS', 'OTHER_ATTRIBUTES').default('PRODUCT_INVENTORY').messages({
     'any.only': 'groupType must be PRODUCT_INVENTORY, PRODUCT_DETAILS, or OTHER_ATTRIBUTES.',
   }),
-  // Required when type = SELECT; not allowed otherwise
+  // Required when type = SELECT or MULTI_SELECT; not allowed otherwise
   options: Joi.when('type', {
-    is: 'SELECT',
+    is: Joi.valid('SELECT', 'MULTI_SELECT'),
     then: Joi.array().items(Joi.string().trim().min(1).max(100)).min(1).required().messages({
-      'any.required': 'options array is required for SELECT attributes.',
-      'array.min': 'Provide at least one option for a SELECT attribute.',
+      'any.required': 'options array is required for SELECT/MULTI_SELECT attributes.',
+      'array.min': 'Provide at least one option for a SELECT/MULTI_SELECT attribute.',
     }),
-    otherwise: Joi.forbidden().messages({
-      'any.unknown': 'options are only allowed for SELECT attributes.',
-    }),
+    otherwise: Joi.array().items(Joi.string().trim().min(1).max(100)).optional().default([]),
   }),
 });
 

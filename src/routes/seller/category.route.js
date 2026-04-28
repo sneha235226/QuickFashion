@@ -6,8 +6,6 @@ const response = require('../../utils/response');
 
 const router = Router();
 
-router.use(protect, requireApproved);
-
 router.get('/', async (req, res, next) => {
   try {
     const parentId = req.query.parentId ? parseInt(req.query.parentId, 10) : null;
@@ -22,6 +20,8 @@ router.get('/', async (req, res, next) => {
     next(err);
   }
 });
+
+router.use(protect, requireApproved);
 
 router.get('/:id/attributes', async (req, res, next) => {
   try {

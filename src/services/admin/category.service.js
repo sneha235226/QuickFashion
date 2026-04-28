@@ -149,7 +149,7 @@ const addSizeColumn = async (attributeId, { name, unit, inputType, isRequired, s
     sortOrder: sortOrder ?? 0,
   });
 
-  if (['SELECT'].includes(column.inputType) && options && options.length > 0) {
+  if (['SELECT', 'MULTI_SELECT'].includes(column.inputType) && options && options.length > 0) {
     await CategoryModel.createSizeColumnOptions(column.id, options);
   }
 

@@ -10,7 +10,7 @@ const { s3, BUCKET } = require('../utils/s3');
 const documentStorage = multerS3({
   s3,
   bucket: BUCKET,
-  contentType: multerS3.AUTO_CONTENT_TYPE,
+  contentType: (req, file, cb) => cb(null, file.mimetype || 'application/octet-stream'),
   key: (_req, file, cb) => {
     const unique = crypto.randomBytes(8).toString('hex');
     const ext = path.extname(file.originalname).toLowerCase();
@@ -65,7 +65,7 @@ const imageUpload = multer({
   storage: multerS3({
     s3,
     bucket: BUCKET,
-    contentType: multerS3.AUTO_CONTENT_TYPE,
+    contentType: (req, file, cb) => cb(null, file.mimetype || 'application/octet-stream'),
     key: (_req, file, cb) => {
       const unique = crypto.randomBytes(8).toString('hex');
       const ext = path.extname(file.originalname).toLowerCase();
@@ -87,7 +87,7 @@ const gstUpload = multer({
   storage: multerS3({
     s3,
     bucket: BUCKET,
-    contentType: multerS3.AUTO_CONTENT_TYPE,
+    contentType: (req, file, cb) => cb(null, file.mimetype || 'application/octet-stream'),
     key: (_req, file, cb) => {
       const unique = crypto.randomBytes(8).toString('hex');
       const ext = path.extname(file.originalname).toLowerCase();
@@ -105,7 +105,7 @@ const catalogFilesUpload = multer({
   storage: multerS3({
     s3,
     bucket: BUCKET,
-    contentType: multerS3.AUTO_CONTENT_TYPE,
+    contentType: (req, file, cb) => cb(null, file.mimetype || 'application/octet-stream'),
     key: (_req, file, cb) => {
       const unique = crypto.randomBytes(8).toString('hex');
       const ext = path.extname(file.originalname).toLowerCase();
