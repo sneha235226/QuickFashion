@@ -46,10 +46,11 @@ const login = async (req, res, next) => {
         const { error, value } = loginSchema.validate(req.body);
         if (error) return next(new AppError(error.details[0].message, 400, 'VALIDATION_ERROR'));
 
-        const { identifier, password } = value;
+        const { identifier, email, mobile, password } = value;
+        const loginId = identifier || email || mobile;
 
         // Find user by email or phone
-        const user = await UserModel.findByIdentifier(identifier);
+        const user = await UserModel.findByIdentifier(loginId);
 
         if (!user || !user.password) {
             return next(new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS'));

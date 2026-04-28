@@ -26,16 +26,14 @@ const verifyOtpSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-    identifier: Joi.alternatives().try(
-        Joi.string().email(),
-        Joi.string().pattern(/^\d{10,15}$/)
-    ).required().messages({
-        'alternatives.types': 'Identifier must be a valid email or phone number.',
-        'any.required': 'Identifier (email or phone) is required.'
-    }),
+    identifier: Joi.string().optional(),
+    email: Joi.string().email().optional(),
+    mobile: Joi.string().pattern(/^\d{10,15}$/).optional(),
     password: Joi.string().required().messages({
         'any.required': 'Password is required.'
     }),
+}).or('identifier', 'email', 'mobile').messages({
+    'object.missing': 'Identifier (email or mobile) is required.'
 });
 
 module.exports = {
