@@ -282,6 +282,7 @@ model Product {
   attributeValues ProductAttributeValue[]
   images          ProductImage[]
   wishlistItems   Wishlist[]
+  stockLogs       StockLog[]
 
   @@index([catalogId])
   @@index([sku])
@@ -388,6 +389,21 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
 }
+
+model StockLog {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  oldStock  Int
+  newStock  Int
+  change    Int
+  reason    String // e.g., "ORDER_PLACED", "MANUAL_UPDATE", "ORDER_CANCELLED"
+  orderId   Int?
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
 
 enum OrderStatus {
   PENDING

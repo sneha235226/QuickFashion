@@ -6,6 +6,16 @@ const findByMobile = (mobileNumber) =>
 const findById = (id) =>
   prisma.user.findUnique({ where: { id } });
 
+const findByIdentifier = (identifier) =>
+  prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: identifier },
+        { mobileNumber: identifier }
+      ]
+    }
+  });
+
 const create = (data) =>
   prisma.user.create({
     data: {
@@ -23,4 +33,4 @@ const updateRefreshToken = (id, refreshToken) =>
     data: { refreshToken },
   });
 
-module.exports = { findByMobile, findById, create, updateRefreshToken };
+module.exports = { findByMobile, findById, findByIdentifier, create, updateRefreshToken };

@@ -1,147 +1,256 @@
-/**
- * Run: node scripts/seedCategories.js
- *
- * Creates 10 parent categories + their leaf subcategories directly via Prisma.
- * No token needed — run this once from the terminal.
- */
-
-require('../src/config/env');
-require('dotenv').config();
-
 const prisma = require('../src/config/database');
 
-const TREE = [
+const categories = [
   {
-    name: "Women's Clothing",
-    slug: 'womens-clothing',
+    name: 'Women',
+    slug: 'women',
     children: [
-      { name: 'Kurtas & Suits',    slug: 'kurtas-suits' },
-      { name: 'Sarees',            slug: 'sarees' },
-      { name: 'Lehengas',          slug: 'lehengas' },
-      { name: 'Tops & T-Shirts',   slug: 'womens-tops-tshirts' },
-      { name: 'Dresses & Skirts',  slug: 'dresses-skirts' },
-    ],
+      {
+        name: 'Ethnic Wear',
+        slug: 'women-ethnic-wear',
+        children: [
+          {
+            name: 'Sarees',
+            slug: 'women-ethnic-sarees',
+            children: [
+              { name: 'Silk Sarees', slug: 'women-ethnic-sarees-silk' },
+              { name: 'Cotton Sarees', slug: 'women-ethnic-sarees-cotton' },
+              { name: 'Georgette Sarees', slug: 'women-ethnic-sarees-georgette' }
+            ]
+          },
+          {
+            name: 'Kurtas & Suits',
+            slug: 'women-ethnic-kurtas',
+            children: [
+              { name: 'Anarkali Suits', slug: 'women-ethnic-kurtas-anarkali' },
+              { name: 'Straight Kurtas', slug: 'women-ethnic-kurtas-straight' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'Western Wear',
+        slug: 'women-western-wear',
+        children: [
+          {
+            name: 'Tops & Tees',
+            slug: 'women-western-tops',
+            children: [
+              { name: 'Casual Tops', slug: 'women-western-tops-casual' },
+              { name: 'T-Shirts', slug: 'women-western-tops-tees' }
+            ]
+          },
+          {
+            name: 'Dresses',
+            slug: 'women-western-dresses',
+            children: [
+              { name: 'Maxi Dresses', slug: 'women-western-dresses-maxi' },
+              { name: 'Mini Dresses', slug: 'women-western-dresses-mini' }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
-    name: "Men's Clothing",
-    slug: 'mens-clothing',
+    name: 'Men',
+    slug: 'men',
     children: [
-      { name: 'Casual Shirts',     slug: 'mens-casual-shirts' },
-      { name: 'Formal Shirts',     slug: 'mens-formal-shirts' },
-      { name: "Men's T-Shirts",    slug: 'mens-tshirts' },
-      { name: 'Trousers & Jeans',  slug: 'mens-trousers-jeans' },
-      { name: 'Ethnic Wear',       slug: 'mens-ethnic-wear' },
-    ],
+      {
+        name: 'Topwear',
+        slug: 'men-topwear',
+        children: [
+          {
+            name: 'Shirts',
+            slug: 'men-topwear-shirts',
+            children: [
+              { name: 'Casual Shirts', slug: 'men-topwear-shirts-casual' },
+              { name: 'Formal Shirts', slug: 'men-topwear-shirts-formal' }
+            ]
+          },
+          {
+            name: 'T-Shirts',
+            slug: 'men-topwear-tshirts',
+            children: [
+              { name: 'Polo T-Shirts', slug: 'men-topwear-tshirts-polo' },
+              { name: 'Round Neck T-Shirts', slug: 'men-topwear-tshirts-round' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'Bottomwear',
+        slug: 'men-bottomwear',
+        children: [
+          {
+            name: 'Jeans',
+            slug: 'men-bottomwear-jeans',
+            children: [
+              { name: 'Slim Fit Jeans', slug: 'men-bottomwear-jeans-slim' },
+              { name: 'Regular Fit Jeans', slug: 'men-bottomwear-jeans-regular' }
+            ]
+          },
+          {
+            name: 'Trousers',
+            slug: 'men-bottomwear-trousers',
+            children: [
+              { name: 'Chinos', slug: 'men-bottomwear-trousers-chinos' },
+              { name: 'Formal Trousers', slug: 'men-bottomwear-trousers-formal' }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
-    name: "Kids' Clothing",
-    slug: 'kids-clothing',
+    name: 'Kids',
+    slug: 'kids',
     children: [
-      { name: 'Boys Clothing',        slug: 'boys-clothing' },
-      { name: 'Girls Clothing',       slug: 'girls-clothing' },
-      { name: 'Infants & Toddlers',   slug: 'infants-toddlers' },
-    ],
-  },
-  {
-    name: 'Footwear',
-    slug: 'footwear',
-    children: [
-      { name: "Women's Footwear", slug: 'womens-footwear' },
-      { name: "Men's Footwear",   slug: 'mens-footwear' },
-      { name: "Kids' Footwear",   slug: 'kids-footwear' },
-    ],
-  },
-  {
-    name: 'Accessories',
-    slug: 'accessories',
-    children: [
-      { name: 'Jewellery',             slug: 'jewellery' },
-      { name: 'Handbags & Clutches',   slug: 'handbags-clutches' },
-      { name: 'Sunglasses',            slug: 'sunglasses' },
-      { name: 'Watches',               slug: 'watches' },
-      { name: 'Belts & Wallets',       slug: 'belts-wallets' },
-    ],
+      {
+        name: 'Boys Clothing',
+        slug: 'kids-boys',
+        children: [
+          {
+            name: 'T-Shirts',
+            slug: 'kids-boys-tshirts',
+            children: [
+              { name: 'Graphic T-Shirts', slug: 'kids-boys-tshirts-graphic' },
+              { name: 'Striped T-Shirts', slug: 'kids-boys-tshirts-striped' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'Girls Clothing',
+        slug: 'kids-girls',
+        children: [
+          {
+            name: 'Dresses',
+            slug: 'kids-girls-dresses',
+            children: [
+              { name: 'Party Dresses', slug: 'kids-girls-dresses-party' },
+              { name: 'Casual Dresses', slug: 'kids-girls-dresses-casual' }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
     name: 'Home & Kitchen',
     slug: 'home-kitchen',
     children: [
-      { name: 'Bedding & Pillows',  slug: 'bedding-pillows' },
-      { name: 'Kitchen & Dining',   slug: 'kitchen-dining' },
-      { name: 'Home Decor',         slug: 'home-decor' },
-      { name: 'Bath & Towels',      slug: 'bath-towels' },
-    ],
+      {
+        name: 'Home Decor',
+        slug: 'home-decor',
+        children: [
+          {
+            name: 'Wall Decor',
+            slug: 'home-decor-wall',
+            children: [
+              { name: 'Paintings', slug: 'home-decor-wall-paintings' },
+              { name: 'Wall Shelves', slug: 'home-decor-wall-shelves' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'Furnishing',
+        slug: 'home-furnishing',
+        children: [
+          {
+            name: 'Bed Linen',
+            slug: 'home-furnishing-bed',
+            children: [
+              { name: 'Bedsheets', slug: 'home-furnishing-bed-sheets' },
+              { name: 'Blankets', slug: 'home-furnishing-bed-blankets' }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
-    name: 'Beauty & Personal Care',
-    slug: 'beauty-personal-care',
+    name: 'Beauty',
+    slug: 'beauty',
     children: [
-      { name: 'Skincare',   slug: 'skincare' },
-      { name: 'Haircare',   slug: 'haircare' },
-      { name: 'Makeup',     slug: 'makeup' },
-      { name: 'Fragrances', slug: 'fragrances' },
-    ],
-  },
-  {
-    name: 'Electronics',
-    slug: 'electronics',
-    children: [
-      { name: 'Mobile Accessories',     slug: 'mobile-accessories' },
-      { name: 'Earphones & Headphones', slug: 'earphones-headphones' },
-      { name: 'Laptop Accessories',     slug: 'laptop-accessories' },
-      { name: 'Smartwatches & Bands',   slug: 'smartwatches-bands' },
-    ],
-  },
-  {
-    name: 'Sports & Fitness',
-    slug: 'sports-fitness',
-    children: [
-      { name: 'Gym & Fitness Equipment', slug: 'gym-fitness' },
-      { name: 'Sports Clothing',         slug: 'sports-clothing' },
-      { name: 'Outdoor & Adventure',     slug: 'outdoor-adventure' },
-      { name: 'Yoga & Meditation',       slug: 'yoga-meditation' },
-    ],
-  },
-  {
-    name: 'Bags & Luggage',
-    slug: 'bags-luggage',
-    children: [
-      { name: 'Backpacks',    slug: 'backpacks' },
-      { name: 'Travel Bags',  slug: 'travel-bags' },
-      { name: 'Laptop Bags',  slug: 'laptop-bags' },
-      { name: 'Gym Bags',     slug: 'gym-bags' },
-    ],
-  },
+      {
+        name: 'Makeup',
+        slug: 'beauty-makeup',
+        children: [
+          {
+            name: 'Face',
+            slug: 'beauty-makeup-face',
+            children: [
+              { name: 'Foundation', slug: 'beauty-makeup-face-foundation' },
+              { name: 'Compact', slug: 'beauty-makeup-face-compact' }
+            ]
+          },
+          {
+            name: 'Lips',
+            slug: 'beauty-makeup-lips',
+            children: [
+              { name: 'Lipstick', slug: 'beauty-makeup-lips-lipstick' },
+              { name: 'Lip Gloss', slug: 'beauty-makeup-lips-gloss' }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 ];
 
-async function seed() {
-  let parentCount = 0;
-  let childCount  = 0;
+async function seed(categoryList, parentId = null, level = 1) {
+  for (const cat of categoryList) {
+    const isLeaf = !cat.children || cat.children.length === 0;
 
-  for (const { name, slug, children } of TREE) {
-    // Create parent (not a leaf — cannot hold products directly)
-    const parent = await prisma.category.create({
-      data: { name, slug, isLeaf: false },
+    // Check if category exists
+    let category = await prisma.category.findUnique({
+      where: { slug: cat.slug }
     });
-    parentCount++;
-    console.log(`  [parent] ${parent.name} (id: ${parent.id})`);
 
-    // Create leaf children
-    for (const child of children) {
-      const leaf = await prisma.category.create({
-        data: { name: child.name, slug: child.slug, parentId: parent.id, isLeaf: true },
+    if (category) {
+      // Update existing
+      category = await prisma.category.update({
+        where: { id: category.id },
+        data: {
+          name: cat.name,
+          parentId: parentId,
+          level: level,
+          isLeaf: isLeaf
+        }
       });
-      childCount++;
-      console.log(`      [leaf] ${leaf.name} (id: ${leaf.id})`);
+      console.log(`Updated: ${'  '.repeat(level - 1)}${cat.name} (L${level})`);
+    } else {
+      // Create new
+      category = await prisma.category.create({
+        data: {
+          name: cat.name,
+          slug: cat.slug,
+          parentId: parentId,
+          level: level,
+          isLeaf: isLeaf
+        }
+      });
+      console.log(`Created: ${'  '.repeat(level - 1)}${cat.name} (L${level})`);
+    }
+
+    if (cat.children && cat.children.length > 0) {
+      await seed(cat.children, category.id, level + 1);
     }
   }
-
-  console.log(`\nDone! ${parentCount} parent categories + ${childCount} leaf categories created.`);
 }
 
-seed()
-  .catch((err) => {
-    console.error('Seed failed:', err.message);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+async function main() {
+  try {
+    console.log('Starting category seeding...');
+    await seed(categories);
+    console.log('Seeding completed successfully!');
+  } catch (error) {
+    console.error('Error during seeding:', error);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();

@@ -1,7 +1,7 @@
 const authService = require('../../services/auth.service');
 const UserModel = require('../../models/user');
 const bcrypt = require('bcryptjs');
-const { registerSchema, sendOtpSchema, verifyOtpSchema } = require('../../validators/user/auth.validator');
+const { registerSchema, sendOtpSchema, verifyOtpSchema, loginSchema } = require('../../validators/user/auth.validator');
 const response = require('../../utils/response');
 const AppError = require('../../utils/AppError');
 
@@ -32,6 +32,49 @@ const register = async (req, res, next) => {
         await UserModel.updateRefreshToken(newUser.id, tokens.refreshToken);
 
         return response.success(res, 'User registered successfully.', { tokens, user: { id: newUser.id, name: newUser.name } });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * POST /api/user/auth/login
+ * Unified login (Email or Phone with Password)
+ */
+const login = async (req, res, next) => {
+    try {
+        const { error, value } = loginSchema.validate(req.body);
+        if (error) return next(new AppError(error.details[0].message, 400, 'VALIDATION_ERROR'));
+
+        const { identifier, password } = value;
+
+        // Find user by email or phone
+        const user = await UserModel.findByIdentifier(identifier);
+
+        if (!user || !user.password) {
+            return next(new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS'));
+        }
+
+        // Check password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return next(new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS'));
+        }
+
+        // Generate tokens
+        const jwt = require('../../utils/jwt');
+        const tokens = jwt.generateUserTokens({ userId: user.id, mobile: user.mobileNumber });
+        await UserModel.updateRefreshToken(user.id, tokens.refreshToken);
+
+        return response.success(res, 'Login successful.', {
+            tokens,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                mobile: user.mobileNumber
+            }
+        });
     } catch (err) {
         next(err);
     }
@@ -90,4 +133,4 @@ const refreshToken = async (req, res, next) => {
     }
 };
 
-module.exports = { register, sendOtp, verifyOtp, refreshToken };
+module.exports = { register, login, sendOtp, verifyOtp, refreshToken };
