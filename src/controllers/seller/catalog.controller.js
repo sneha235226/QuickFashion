@@ -10,11 +10,29 @@ const { getPublicUrl, getSignUrl } = require('../../utils/s3');
  */
 const list = async (req, res, next) => {
   try {
-    const catalogs = await catalogService.listMyCatalogs(req.seller.id);
-    for (const catalog of catalogs) {
+    const filters = {
+      tab: req.query.tab,
+      stockFilter: req.query.stockFilter,
+      categoryId: req.query.categoryId,
+      status: req.query.status
+    };
+    const result = await catalogService.listMyCatalogs(req.seller.id, filters);
+    for (const catalog of result.catalogs) {
       await _signCatalogUrls(catalog);
     }
-    return response.success(res, `${catalogs.length} catalog(s) found.`, { catalogs });
+    return response.success(res, `${result.catalogs.length} catalog(s) found.`, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/seller/catalog/:catalogId/toggle-pause
+ */
+const togglePause = async (req, res, next) => {
+  try {
+    const catalog = await catalogService.togglePauseCatalog(parseInt(req.params.catalogId, 10), req.seller.id);
+    return response.success(res, `Catalog ${catalog.status === 'PAUSED' ? 'paused' : 'unpaused'} successfully.`, { catalog });
   } catch (err) {
     next(err);
   }
@@ -181,6 +199,48 @@ const uploadImage = async (req, res, next) => {
   }
 };
 
+/**
+ * PUT /api/seller/catalog/:catalogId
+ * Multipart: data (JSON string) + FRONT, BACK, SIDE, ZOOMED + document (optional)
+ * Updates the catalog details while preserving its current status unless specified.
+ */
+const update = async (req, res, next) => {
+  try {
+    const { payload, imageUrls, docUrl } = await _parseMultipartCatalog(req);
+    
+    const catalogId = parseInt(req.params.catalogId, 10);
+    payload.catalogId = catalogId;
+    
+    // Get existing catalog to determine current status
+    const existingCatalog = await catalogService.getCatalog(catalogId, req.seller.id);
+    let targetStatus = payload.status || existingCatalog.status;
+
+    // If an approved or rejected catalog is edited, it must go through admin review again
+    if (existingCatalog.status === 'APPROVED' || existingCatalog.status === 'REJECTED') {
+      targetStatus = 'SUBMITTED';
+    }
+
+    if (targetStatus === 'SUBMITTED') {
+      const { error, value } = unifiedCatalogSchema.validate(payload, { abortEarly: false });
+      if (error) return response.validationError(res, error);
+      payload.categoryId = value.categoryId; // ensuring validated types
+    }
+    
+    // Fallback if categoryId is not provided in payload but we have it from existing
+    if (!payload.categoryId) {
+      payload.categoryId = existingCatalog.categoryId;
+    }
+
+    const catalog = await catalogService.processUnifiedCatalog(
+      req.seller.id, payload, imageUrls, docUrl, targetStatus
+    );
+    await _signCatalogUrls(catalog);
+    return response.success(res, 'Catalog updated successfully.', { catalog });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   getOne,
@@ -188,4 +248,6 @@ module.exports = {
   saveDraft,
   submitForReview,
   uploadImage,
+  update,
+  togglePause,
 };

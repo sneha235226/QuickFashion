@@ -61,7 +61,16 @@ const resolveAttributeValues = async (categoryId, inputs = [], scope = 'all') =>
 
 // ─── Catalog lifecycle ────────────────────────────────────────────────────────
 
-const listMyCatalogs = (sellerId) => CatalogModel.findBySeller(sellerId);
+const listMyCatalogs = (sellerId, filters) => CatalogModel.findBySeller(sellerId, filters);
+
+const togglePauseCatalog = async (catalogId, sellerId) => {
+  const catalog = await assertOwnership(catalogId, sellerId);
+  if (!['APPROVED', 'PAUSED'].includes(catalog.status)) {
+    throw new AppError('Only APPROVED or PAUSED catalogs can be toggled.', 400, 'INVALID_STATUS');
+  }
+  const newStatus = catalog.status === 'PAUSED' ? 'APPROVED' : 'PAUSED';
+  return CatalogModel.update(catalogId, { status: newStatus });
+};
 
 const getCatalog = async (catalogId, sellerId) => {
   const catalog = await CatalogModel.findById(catalogId);
@@ -311,4 +320,5 @@ module.exports = {
   getCatalog,
   discardCatalog,
   processUnifiedCatalog,
+  togglePauseCatalog,
 };

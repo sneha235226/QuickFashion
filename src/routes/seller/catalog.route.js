@@ -14,6 +14,8 @@ router.post('/save-draft', uploadCatalogFiles, catalogCtrl.saveDraft);       // 
 router.post('/submit', uploadCatalogFiles, catalogCtrl.submitForReview);     // Submit for admin approval
 router.post('/upload-image', uploadCatalogFiles, catalogCtrl.uploadImage);   // Standalone image upload for preview
 router.post('/:catalogId/discard', catalogCtrl.discard);                     // Discard catalog
+router.put('/:catalogId', uploadCatalogFiles, catalogCtrl.update);           // Update catalog details
+router.patch('/:catalogId/toggle-pause', catalogCtrl.togglePause);           // Pause/Unpause a catalog
 
 // ─── Catalog Queries ──────────────────────────────────────────────────────────
 
