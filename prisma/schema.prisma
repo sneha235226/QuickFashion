@@ -246,6 +246,8 @@ model Catalog {
   sellerId         Int
   categoryId       Int
   brandName        String?
+  isReturnable     Boolean                 @default(true)
+  isCodAllowed     Boolean                 @default(true)
   status           CatalogStatus           @default(DRAFT)
   rejectionNote    String?
   createdAt        DateTime                @default(now())
@@ -363,6 +365,8 @@ model Order {
   userId        Int
   subTotal      Decimal     @db.Decimal(10, 2)
   totalGst      Decimal     @db.Decimal(10, 2)
+  totalTcs      Decimal     @db.Decimal(10, 2)
+  totalTds      Decimal     @db.Decimal(10, 2)
   totalDiscount Decimal     @db.Decimal(10, 2)
   grandTotal    Decimal     @db.Decimal(10, 2)
   status        OrderStatus @default(PENDING)
@@ -383,6 +387,8 @@ model OrderItem {
   price     Decimal  @db.Decimal(10, 2)
   mrp       Decimal  @db.Decimal(10, 2)
   gstAmount Decimal  @db.Decimal(10, 2)
+  tcsAmount Decimal  @db.Decimal(10, 2)
+  tdsAmount Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id])

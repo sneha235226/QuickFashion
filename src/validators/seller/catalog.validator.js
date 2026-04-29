@@ -31,6 +31,8 @@ const unifiedCatalogSchema = Joi.object({
   catalogId: Joi.number().integer().positive().optional(),
   categoryId: Joi.number().integer().positive().required(),
   brandName: Joi.string().trim().min(1).max(200).optional(),
+  isReturnable: Joi.boolean().optional(),
+  isCodAllowed: Joi.boolean().optional(),
   commonAttributes: Joi.array().items(attributeValueSchema).default([]),
   products: Joi.array().items(productInputSchema).min(1).max(9).required(),
 });

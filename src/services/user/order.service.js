@@ -29,6 +29,8 @@ const createOrder = async (userId) => {
                 userId,
                 subTotal: cart.summary.totalBasePrice,
                 totalGst: cart.summary.totalGst,
+                totalTcs: cart.summary.totalTcs,
+                totalTds: cart.summary.totalTds,
                 totalDiscount: cart.summary.totalDiscount,
                 grandTotal: cart.summary.grandTotal,
                 status: 'PLACED',
@@ -39,6 +41,8 @@ const createOrder = async (userId) => {
                         price: item.price,
                         mrp: item.mrp,
                         gstAmount: item.itemGst,
+                        tcsAmount: item.itemTcs,
+                        tdsAmount: item.itemTds,
                     })),
                 },
             },
@@ -67,13 +71,17 @@ const createOrder = async (userId) => {
             ...order,
             subTotal: Number(order.subTotal),
             totalGst: Number(order.totalGst),
+            totalTcs: Number(order.totalTcs),
+            totalTds: Number(order.totalTds),
             totalDiscount: Number(order.totalDiscount),
             grandTotal: Number(order.grandTotal),
             items: order.items.map(item => ({
                 ...item,
                 price: Number(item.price),
                 mrp: Number(item.mrp),
-                gstAmount: Number(item.gstAmount)
+                gstAmount: Number(item.gstAmount),
+                tcsAmount: Number(item.tcsAmount),
+                tdsAmount: Number(item.tdsAmount)
             }))
         };
     }, {
@@ -109,13 +117,17 @@ const getOrders = async (userId) => {
         ...order,
         subTotal: Number(order.subTotal),
         totalGst: Number(order.totalGst),
+        totalTcs: Number(order.totalTcs),
+        totalTds: Number(order.totalTds),
         totalDiscount: Number(order.totalDiscount),
         grandTotal: Number(order.grandTotal),
         items: order.items.map(item => ({
             ...item,
             price: Number(item.price),
             mrp: Number(item.mrp),
-            gstAmount: Number(item.gstAmount)
+            gstAmount: Number(item.gstAmount),
+            tcsAmount: Number(item.tcsAmount),
+            tdsAmount: Number(item.tdsAmount)
         }))
     }));
 };
@@ -150,13 +162,17 @@ const getOrderDetail = async (userId, orderId) => {
         ...order,
         subTotal: Number(order.subTotal),
         totalGst: Number(order.totalGst),
+        totalTcs: Number(order.totalTcs),
+        totalTds: Number(order.totalTds),
         totalDiscount: Number(order.totalDiscount),
         grandTotal: Number(order.grandTotal),
         items: order.items.map(item => ({
             ...item,
             price: Number(item.price),
             mrp: Number(item.mrp),
-            gstAmount: Number(item.gstAmount)
+            gstAmount: Number(item.gstAmount),
+            tcsAmount: Number(item.tcsAmount),
+            tdsAmount: Number(item.tdsAmount)
         }))
     };
 };

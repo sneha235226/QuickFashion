@@ -12,6 +12,8 @@ const getCart = async (userId) => {
 
     let totalBasePrice = 0;
     let totalGst = 0;
+    let totalTcs = 0;
+    let totalTds = 0;
     let totalMrp = 0;
 
     const items = cart.items.map((item) => {
@@ -25,12 +27,16 @@ const getCart = async (userId) => {
 
         const itemBasePrice = price * quantity;
         const itemGst = parseFloat(((itemBasePrice * gstRate) / 100).toFixed(2));
+        const itemTcs = parseFloat(((itemBasePrice * 0.5) / 100).toFixed(2));
+        const itemTds = parseFloat(((itemBasePrice * 0.1) / 100).toFixed(2));
         const itemTotal = parseFloat((itemBasePrice + itemGst).toFixed(2));
         const itemMrpTotal = mrp * quantity;
         const discount = parseFloat((itemMrpTotal - itemBasePrice).toFixed(2));
 
         totalBasePrice += itemBasePrice;
         totalGst += itemGst;
+        totalTcs += itemTcs;
+        totalTds += itemTds;
         totalMrp += itemMrpTotal;
 
         return {
@@ -46,6 +52,8 @@ const getCart = async (userId) => {
             quantity,
             itemBasePrice,
             itemGst,
+            itemTcs,
+            itemTds,
             itemTotal,
             discount,
             inStock: product.stock >= quantity,
@@ -65,6 +73,8 @@ const getCart = async (userId) => {
             totalBasePrice: parseFloat(totalBasePrice.toFixed(2)),
             totalDiscount,
             totalGst: parseFloat(totalGst.toFixed(2)),
+            totalTcs: parseFloat(totalTcs.toFixed(2)),
+            totalTds: parseFloat(totalTds.toFixed(2)),
             grandTotal,
         },
     };

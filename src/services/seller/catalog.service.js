@@ -94,13 +94,13 @@ const discardCatalog = async (catalogId, sellerId) => {
 const processUnifiedCatalog = async (sellerId, payload, imageUrls = [], docUrl = null, targetStatus = 'DRAFT') => {
   const prisma = require('../../config/database');
 
-  const { catalogId, categoryId, brandName, commonAttributes = [], products = [] } = payload;
+  const { catalogId, categoryId, brandName, isReturnable, isCodAllowed, commonAttributes = [], products = [] } = payload;
 
   // 1. Validate category
   const category = await CategoryModel.findById(categoryId);
   if (!category) throw new AppError('Category not found.', 404, 'NOT_FOUND');
   if (!category.isLeaf) throw new AppError('Catalogs can only be created in leaf categories.', 400, 'NOT_LEAF');
-  
+
   if (catalogId) {
     await assertOwnership(catalogId, sellerId, { requireDraft: targetStatus === 'DRAFT' });
   }
@@ -191,7 +191,12 @@ const processUnifiedCatalog = async (sellerId, payload, imageUrls = [], docUrl =
     if (catalogId) {
       catalog = await tx.catalog.update({
         where: { id: parseInt(catalogId, 10) },
-        data: { brandName: brandName || null, status: targetStatus }
+        data: {
+          brandName: brandName || null,
+          status: targetStatus,
+          ...(isReturnable !== undefined && { isReturnable }),
+          ...(isCodAllowed !== undefined && { isCodAllowed }),
+        }
       });
       // Delete existing associations
       await tx.product.deleteMany({ where: { catalogId: catalog.id } });
@@ -207,6 +212,8 @@ const processUnifiedCatalog = async (sellerId, payload, imageUrls = [], docUrl =
           sellerId,
           categoryId,
           brandName: brandName || null,
+          isReturnable: isReturnable ?? true,
+          isCodAllowed: isCodAllowed ?? true,
           status: targetStatus,
         },
       });
