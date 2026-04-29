@@ -3,6 +3,7 @@ const response = require('../../utils/response');
 const AppError = require('../../utils/AppError');
 const { unifiedCatalogSchema } = require('../../validators/seller/catalog.validator');
 const CategoryModel = require('../../models/category');
+const { getPublicUrl, getSignUrl } = require('../../utils/s3');
 
 /**
  * GET /api/seller/catalog
@@ -10,6 +11,9 @@ const CategoryModel = require('../../models/category');
 const list = async (req, res, next) => {
   try {
     const catalogs = await catalogService.listMyCatalogs(req.seller.id);
+    for (const catalog of catalogs) {
+      await _signCatalogUrls(catalog);
+    }
     return response.success(res, `${catalogs.length} catalog(s) found.`, { catalogs });
   } catch (err) {
     next(err);
@@ -22,6 +26,7 @@ const list = async (req, res, next) => {
 const getOne = async (req, res, next) => {
   try {
     const catalog = await catalogService.getCatalog(parseInt(req.params.catalogId, 10), req.seller.id);
+    await _signCatalogUrls(catalog);
     return response.success(res, 'Catalog retrieved.', { catalog });
   } catch (err) {
     next(err);
@@ -43,7 +48,7 @@ const discard = async (req, res, next) => {
 /**
  * Helper — parse multipart fields and extract image URLs + document URL.
  */
-const _parseMultipartCatalog = (req) => {
+const _parseMultipartCatalog = async (req) => {
   let payload;
 
   // Case 1: Data is a JSON string in req.body.data (Standard for multipart with large blobs)
@@ -69,7 +74,8 @@ const _parseMultipartCatalog = (req) => {
   if (req.files) {
     for (const field of IMAGE_FIELDS) {
       if (req.files[field] && req.files[field][0]) {
-        imageUrls.push(req.files[field][0].location);
+        // Persist the fixed public URL
+        imageUrls.push(getPublicUrl(req.files[field][0].key));
       }
     }
   }
@@ -77,10 +83,35 @@ const _parseMultipartCatalog = (req) => {
   // Collect document URL
   let docUrl = null;
   if (req.files && req.files.document && req.files.document[0]) {
-    docUrl = req.files.document[0].location;
+    docUrl = getPublicUrl(req.files.document[0].key);
   }
 
   return { payload, imageUrls, docUrl };
+};
+
+/**
+ * Helper — recursively sign all URLs in a catalog object.
+ */
+const _signCatalogUrls = async (catalog) => {
+  if (!catalog) return;
+
+  // Sign product images
+  if (catalog.products) {
+    for (const product of catalog.products) {
+      if (product.images) {
+        for (const img of product.images) {
+          if (img.url) img.url = await getSignUrl(img.url);
+        }
+      }
+    }
+  }
+
+  // Sign brand documents
+  if (catalog.documents) {
+    for (const doc of catalog.documents) {
+      if (doc.documentUrl) doc.documentUrl = await getSignUrl(doc.documentUrl);
+    }
+  }
 };
 
 /**
@@ -90,10 +121,11 @@ const _parseMultipartCatalog = (req) => {
  */
 const saveDraft = async (req, res, next) => {
   try {
-    const { payload, imageUrls, docUrl } = _parseMultipartCatalog(req);
+    const { payload, imageUrls, docUrl } = await _parseMultipartCatalog(req);
     const catalog = await catalogService.processUnifiedCatalog(
       req.seller.id, payload, imageUrls, docUrl, 'DRAFT'
     );
+    await _signCatalogUrls(catalog);
     return response.created(res, 'Catalog saved as draft.', { catalog });
   } catch (err) {
     next(err);
@@ -107,7 +139,7 @@ const saveDraft = async (req, res, next) => {
  */
 const submitForReview = async (req, res, next) => {
   try {
-    const { payload, imageUrls, docUrl } = _parseMultipartCatalog(req);
+    const { payload, imageUrls, docUrl } = await _parseMultipartCatalog(req);
 
     // Strict validation for submission
     const { error, value } = unifiedCatalogSchema.validate(payload, { abortEarly: false });
@@ -116,6 +148,7 @@ const submitForReview = async (req, res, next) => {
     const catalog = await catalogService.processUnifiedCatalog(
       req.seller.id, value, imageUrls, docUrl, 'SUBMITTED'
     );
+    await _signCatalogUrls(catalog);
     return response.created(res, 'Catalog submitted for admin review.', { catalog });
   } catch (err) {
     next(err);
@@ -133,7 +166,7 @@ const uploadImage = async (req, res, next) => {
       const IMAGE_FIELDS = ['FRONT', 'BACK', 'SIDE', 'ZOOMED'];
       for (const field of IMAGE_FIELDS) {
         if (req.files[field] && req.files[field][0]) {
-          imageUrls[field] = req.files[field][0].location;
+          imageUrls[field] = await getSignUrl(req.files[field][0].key);
         }
       }
     }

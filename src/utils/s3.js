@@ -1,4 +1,5 @@
-const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION,
@@ -43,4 +44,21 @@ const getPublicUrl = (key) => {
   return `https://${BUCKET}.s3.${region}.amazonaws.com/${key}`;
 };
 
-module.exports = { s3, BUCKET, deleteFile, keyFromUrl, getPublicUrl };
+/**
+ * Generate a signed URL for an S3 object.
+ * This allows temporary access to private objects.
+ */
+const getSignUrl = async (key, expiresIn = 3600) => {
+  if (!key) return null;
+  // If it's already a full URL, extract the key if possible
+  const actualKey = key.startsWith('http') ? keyFromUrl(key) : key;
+
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: actualKey,
+  });
+
+  return await getSignedUrl(s3, command, { expiresIn });
+};
+
+module.exports = { s3, BUCKET, deleteFile, keyFromUrl, getPublicUrl, getSignUrl };

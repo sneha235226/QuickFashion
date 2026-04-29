@@ -2,7 +2,7 @@ const SellerOnboardingModel = require('../../models/seller_onboarding');
 const AppError = require('../../utils/AppError');
 const response = require('../../utils/response');
 const Joi = require('joi');
-const { getPublicUrl } = require('../../utils/s3');
+const { getPublicUrl, getSignUrl } = require('../../utils/s3');
 
 const step1Schema = Joi.object({
     firstName: Joi.string().required(),
@@ -112,6 +112,11 @@ const step2 = async (req, res, next) => {
             stepCompleted: Math.max(2, current.stepCompleted),
         });
 
+        // Return signed URL in the response for immediate access
+        if (updated.businessDetails?.gstDocument) {
+            updated.businessDetails.gstDocument = await getSignUrl(updated.businessDetails.gstDocument);
+        }
+
         return response.success(res, 'Step 2 saved successfully', updated);
     } catch (err) {
         next(err);
@@ -173,6 +178,11 @@ const getStatus = async (req, res, next) => {
             throw new AppError('No onboarding record found.', 404, 'NOT_FOUND');
         }
 
+        // Sign the GST document URL before returning
+        if (current.businessDetails?.gstDocument) {
+            current.businessDetails.gstDocument = await getSignUrl(current.businessDetails.gstDocument);
+        }
+
         return response.success(res, 'Onboarding Status retrieved.', current);
     } catch (err) {
         next(err);
@@ -186,7 +196,7 @@ const uploadGst = async (req, res, next) => {
         }
 
         return response.success(res, 'GST document uploaded successfully.', {
-            location: getPublicUrl(req.file.key), // Full S3 URL
+            location: await getSignUrl(req.file.key), // Signed S3 URL
         });
     } catch (err) {
         next(err);
