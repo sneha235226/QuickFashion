@@ -40,15 +40,24 @@ const listProducts = async (filters = {}) => {
             skip,
             take: limit,
             include: {
-                images: { where: { imageType: 'FRONT' }, take: 1 }, // Show front image in list
+                images: true, // Get all images just in case
                 catalog: { select: { brandName: true, category: { select: { name: true } } } },
             },
         }),
         prisma.product.count({ where }),
     ]);
 
+    const mappedProducts = products.map(p => ({
+        ...p,
+        price: Number(p.price),
+        mrp: p.mrp ? Number(p.mrp) : null,
+        returnPrice: p.returnPrice ? Number(p.returnPrice) : null,
+        gstRate: p.gstRate ? Number(p.gstRate) : null,
+        netWeight: p.netWeight ? Number(p.netWeight) : null,
+    }));
+
     return {
-        products,
+        products: mappedProducts,
         pagination: {
             total,
             page,
@@ -81,7 +90,16 @@ const getProductDetails = async (productId) => {
         },
     });
 
-    return product;
+    if (!product) return null;
+
+    return {
+        ...product,
+        price: Number(product.price),
+        mrp: product.mrp ? Number(product.mrp) : null,
+        returnPrice: product.returnPrice ? Number(product.returnPrice) : null,
+        gstRate: product.gstRate ? Number(product.gstRate) : null,
+        netWeight: product.netWeight ? Number(product.netWeight) : null,
+    };
 };
 
 /**
