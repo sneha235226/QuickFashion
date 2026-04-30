@@ -33,4 +33,29 @@ const updateRefreshToken = (id, refreshToken) =>
     data: { refreshToken },
   });
 
-module.exports = { findByMobile, findById, findByIdentifier, create, updateRefreshToken };
+/**
+ * Find a user by their password reset token.
+ */
+const findByResetToken = (token) =>
+  prisma.user.findFirst({
+    where: { passwordResetToken: token },
+  });
+
+/**
+ * Store or clear a password reset token + expiry on a user.
+ */
+const updatePasswordReset = (id, data) =>
+  prisma.user.update({
+    where: { id },
+    data,
+  });
+
+module.exports = {
+  findByMobile,
+  findById,
+  findByIdentifier,
+  create,
+  updateRefreshToken,
+  findByResetToken,
+  updatePasswordReset,
+};

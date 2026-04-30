@@ -7,18 +7,20 @@ datasource db {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  password     String?
-  createdAt    DateTime   @default(now())
-  email        String?    @unique
-  isVerified   Boolean    @default(false)
-  mobileNumber String     @unique
-  name         String?
-  refreshToken String?
-  updatedAt    DateTime   @updatedAt
-  cart         Cart?
-  orders       Order[]
-  wishlist     Wishlist[]
+  id                   Int        @id @default(autoincrement())
+  password             String?
+  createdAt            DateTime   @default(now())
+  email                String?    @unique
+  isVerified           Boolean    @default(false)
+  mobileNumber         String     @unique
+  name                 String?
+  refreshToken         String?
+  passwordResetToken   String?
+  passwordResetExpiry  DateTime?
+  updatedAt            DateTime   @updatedAt
+  cart                 Cart?
+  orders               Order[]
+  wishlist             Wishlist[]
 
   @@index([mobileNumber])
   @@index([email])

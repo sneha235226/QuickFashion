@@ -1,6 +1,7 @@
 const authService = require('../../services/auth.service');
 const UserModel = require('../../models/user');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { registerSchema, sendOtpSchema, verifyOtpSchema, loginSchema } = require('../../validators/user/auth.validator');
 const response = require('../../utils/response');
 const AppError = require('../../utils/AppError');
@@ -134,4 +135,87 @@ const refreshToken = async (req, res, next) => {
     }
 };
 
-module.exports = { register, login, sendOtp, verifyOtp, refreshToken };
+/**
+ * POST /api/user/auth/forgot-password
+ * Generates a secure reset token and (in production) sends it via email/SMS.
+ * Body: { identifier } — accepts email or mobile number
+ */
+const forgotPassword = async (req, res, next) => {
+    try {
+        const { identifier } = req.body;
+        if (!identifier) {
+            return next(new AppError('Email or mobile number is required.', 400, 'VALIDATION_ERROR'));
+        }
+
+        const user = await UserModel.findByIdentifier(identifier);
+
+        // Always return success to avoid user enumeration
+        if (!user) {
+            return response.success(res, 'If an account with that identifier exists, a reset link has been sent.');
+        }
+
+        // Generate a secure random token (hex, 32 bytes = 64 chars)
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+        await UserModel.updatePasswordReset(user.id, {
+            passwordResetToken:  resetToken,
+            passwordResetExpiry: resetExpiry,
+        });
+
+        // TODO: In production, send resetToken via email/SMS instead of returning it
+        // e.g. await emailService.sendResetLink(user.email, resetToken);
+
+        return response.success(res, 'Password reset token generated.', {
+            resetToken, // Remove this in production — send via email/SMS instead
+            expiresAt: resetExpiry,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * POST /api/user/auth/reset-password
+ * Verifies the reset token and sets the new password.
+ * Body: { token, newPassword }
+ */
+const resetPassword = async (req, res, next) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        if (!token || !newPassword) {
+            return next(new AppError('Token and new password are required.', 400, 'VALIDATION_ERROR'));
+        }
+        if (newPassword.length < 6) {
+            return next(new AppError('Password must be at least 6 characters.', 400, 'VALIDATION_ERROR'));
+        }
+
+        const user = await UserModel.findByResetToken(token);
+
+        if (!user) {
+            return next(new AppError('Invalid or expired reset token.', 400, 'INVALID_TOKEN'));
+        }
+
+        // Check token expiry
+        if (!user.passwordResetExpiry || new Date() > new Date(user.passwordResetExpiry)) {
+            return next(new AppError('Reset token has expired. Please request a new one.', 400, 'TOKEN_EXPIRED'));
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password and clear the reset token
+        await UserModel.updatePasswordReset(user.id, {
+            password:            hashedPassword,
+            passwordResetToken:  null,
+            passwordResetExpiry: null,
+            refreshToken:        null, // Invalidate all active sessions
+        });
+
+        return response.success(res, 'Password reset successfully. Please login with your new password.');
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { register, login, sendOtp, verifyOtp, refreshToken, forgotPassword, resetPassword };
