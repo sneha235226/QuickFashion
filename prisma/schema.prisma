@@ -286,6 +286,13 @@ model Product {
   gstRate         Decimal?                @db.Decimal(5, 2)
   netWeight       Decimal?                @db.Decimal(8, 3)
   styleCode       String?
+  packerName      String?
+  packerAddress   String?
+  packerPincode   String?
+  importerName    String?
+  importerAddress String?
+  importerPincode String?
+  countryOfOrigin String?
   sizeDetails     Json?
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt

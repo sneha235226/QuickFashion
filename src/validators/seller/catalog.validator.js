@@ -23,6 +23,13 @@ const productInputSchema = Joi.object({
   netWeight: Joi.number().positive().precision(3).optional(),
   styleCode: Joi.string().trim().max(100).optional(),
   sku: Joi.string().trim().max(100).optional().allow(null, ''),
+  packerName: Joi.string().trim().required().messages({ 'any.required': 'Packer Name is required.' }),
+  packerAddress: Joi.string().trim().required().messages({ 'any.required': 'Packer Address is required.' }),
+  packerPincode: Joi.string().trim().required().messages({ 'any.required': 'Packer Pincode is required.' }),
+  importerName: Joi.string().trim().required().messages({ 'any.required': 'Importer Name is required.' }),
+  importerAddress: Joi.string().trim().required().messages({ 'any.required': 'Importer Address is required.' }),
+  importerPincode: Joi.string().trim().required().messages({ 'any.required': 'Importer Pincode is required.' }),
+  countryOfOrigin: Joi.string().trim().required().messages({ 'any.required': 'Country of Origin is required.' }),
   sizeDetails: Joi.object().optional(),
   variantAttributes: Joi.array().items(attributeValueSchema).default([]),
 });
