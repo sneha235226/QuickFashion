@@ -10,17 +10,12 @@ const { getPublicUrl, getSignUrl } = require('../../utils/s3');
  */
 const list = async (req, res, next) => {
   try {
-    const filters = {
-      tab: req.query.tab,
-      stockFilter: req.query.stockFilter,
-      categoryId: req.query.categoryId,
-      status: req.query.status
-    };
-    const result = await catalogService.listMyCatalogs(req.seller.id, filters);
-    for (const catalog of result.catalogs) {
+    const status = req.query.status || 'all';
+    const catalogs = await catalogService.listMyCatalogs(req.seller.id, status);
+    for (const catalog of catalogs) {
       await _signCatalogUrls(catalog);
     }
-    return response.success(res, `${result.catalogs.length} catalog(s) found.`, result);
+    return response.success(res, `${catalogs.length} catalog(s) found.`, { catalogs });
   } catch (err) {
     next(err);
   }

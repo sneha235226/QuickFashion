@@ -12,8 +12,25 @@ const updateStockSchema = Joi.object({
  */
 const getInventory = async (req, res, next) => {
     try {
-        const products = await inventoryService.listInventory(req.seller.id);
-        return response.success(res, `${products.length} product(s) found in inventory.`, { products });
+        const filters = {
+            tab: req.query.tab,
+            stockFilter: req.query.stockFilter,
+            categoryId: req.query.categoryId,
+            status: req.query.status
+        };
+        const result = await inventoryService.listInventory(req.seller.id, filters);
+        
+        // Sign URLs
+        const { getSignUrl } = require('../../utils/s3');
+        for (const product of result.products) {
+            if (product.images && product.images.length > 0) {
+                for (const img of product.images) {
+                    if (img.url) img.url = await getSignUrl(img.url);
+                }
+            }
+        }
+
+        return response.success(res, `${result.products.length} product(s) found in inventory.`, result);
     } catch (err) {
         next(err);
     }

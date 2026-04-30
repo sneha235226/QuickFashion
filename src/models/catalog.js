@@ -38,81 +38,25 @@ const findById = (id) =>
 const findByIdRaw = (id) =>
   prisma.catalog.findUnique({ where: { id } });
 
-const findBySeller = async (sellerId, filters = {}) => {
-  // Backwards compatibility for when filters was just a status string
-  if (typeof filters === 'string') {
-    filters = { tab: 'all', status: filters };
-  }
-
-  const { tab = 'active', stockFilter = 'all', categoryId, status } = filters;
+const findBySeller = async (sellerId, status = 'all') => {
   const where = { sellerId, status: { not: 'DISCARDED' } };
 
-  // 1. Tab Filters
-  switch (tab.toLowerCase()) {
-    case 'active':
-      where.status = 'APPROVED';
-      break;
-    case 'activation_pending':
-    case 'pending':
-      where.status = 'SUBMITTED';
-      break;
-    case 'blocked':
-      where.status = { in: ['REJECTED', 'BLOCKED'] };
-      break;
-    case 'paused':
-      where.status = 'PAUSED';
-      break;
-    case 'draft':
-      where.status = 'DRAFT';
-      break;
-    case 'all':
-    default:
-      if (status && status.toLowerCase() !== 'all') {
-         where.status = status.toUpperCase();
-      }
-      break;
+  if (status && status.toLowerCase() !== 'all') {
+    let s = status.toUpperCase();
+    if (s === 'PENDING') s = 'SUBMITTED';
+    if (s === 'SUSPENDED') s = 'BLOCKED';
+    where.status = s;
   }
 
-  // 2. Category Filter
-  if (categoryId) {
-    where.categoryId = parseInt(categoryId, 10);
-  }
-
-  // 3. Stock Filter
-  if (stockFilter && stockFilter.toLowerCase() !== 'all') {
-    if (stockFilter.toLowerCase() === 'out_of_stock') {
-      where.products = { some: { stock: 0 } };
-    } else if (stockFilter.toLowerCase() === 'low_stock') {
-      where.products = { some: { stock: { gt: 0, lte: 5 } } };
-    }
-  }
-
-  const [catalogs, activeCount, pendingCount, blockedCount, pausedCount] = await prisma.$transaction([
-    prisma.catalog.findMany({
-      where,
-      select: {
-        id: true, brandName: true, status: true, createdAt: true, rejectionNote: true,
-        category: { select: { id: true, name: true } },
-        products: { 
-          select: { 
-            id: true, sku: true, stock: true, productName: true, price: true, mrp: true,
-            attributeValues: {
-              include: { attribute: { select: { name: true } } }
-            },
-            images: { select: { url: true, imageType: true } }
-          } 
-        },
-        _count: { select: { products: true, documents: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
-    }),
-    prisma.catalog.count({ where: { sellerId, status: 'APPROVED' } }),
-    prisma.catalog.count({ where: { sellerId, status: 'SUBMITTED' } }),
-    prisma.catalog.count({ where: { sellerId, status: { in: ['REJECTED', 'BLOCKED'] } } }),
-    prisma.catalog.count({ where: { sellerId, status: 'PAUSED' } })
-  ]);
-
-  return { catalogs, counts: { active: activeCount, pending: pendingCount, blocked: blockedCount, paused: pausedCount } };
+  return prisma.catalog.findMany({
+    where,
+    select: {
+      id: true, brandName: true, status: true, createdAt: true, rejectionNote: true,
+      category: { select: { id: true, name: true } },
+      _count: { select: { products: true, documents: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
 };
 
 const update = (id, data) =>

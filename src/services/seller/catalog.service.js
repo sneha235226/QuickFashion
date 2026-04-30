@@ -61,7 +61,7 @@ const resolveAttributeValues = async (categoryId, inputs = [], scope = 'all') =>
 
 // ─── Catalog lifecycle ────────────────────────────────────────────────────────
 
-const listMyCatalogs = (sellerId, filters) => CatalogModel.findBySeller(sellerId, filters);
+const listMyCatalogs = (sellerId, status) => CatalogModel.findBySeller(sellerId, status);
 
 const togglePauseCatalog = async (catalogId, sellerId) => {
   const catalog = await assertOwnership(catalogId, sellerId);
