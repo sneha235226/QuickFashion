@@ -162,6 +162,7 @@ model Category {
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
   level           Int                      @default(1)
+  commissionRate  Decimal                  @default(4.00) @db.Decimal(5, 2)
   catalogs        Catalog[]
   parent          Category?                @relation("CategoryTree", fields: [parentId], references: [id])
   children        Category[]               @relation("CategoryTree")

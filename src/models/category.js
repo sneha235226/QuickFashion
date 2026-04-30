@@ -260,7 +260,7 @@ const findAttributesByCategoryId = async (categoryId) => {
 const findAttributesGroupedForSeller = async (categoryId) => {
   const attributes = await prisma.categoryAttribute.findMany({
     where: { categoryId },
-    include: { 
+    include: {
       options: { orderBy: { id: 'asc' } },
       sizeTableColumns: {
         orderBy: { sortOrder: 'asc' },
@@ -303,7 +303,7 @@ const findAttributesGroupedForSeller = async (categoryId) => {
 const findAttributesFlatByCategoryId = (categoryId) =>
   prisma.categoryAttribute.findMany({
     where: { categoryId },
-    include: { 
+    include: {
       options: true,
       sizeTableColumns: {
         orderBy: { sortOrder: 'asc' },
@@ -316,7 +316,7 @@ const findAttributesFlatByCategoryId = (categoryId) =>
 const findAttributeById = (id) =>
   prisma.categoryAttribute.findUnique({
     where: { id },
-    include: { 
+    include: {
       options: true,
       sizeTableColumns: {
         orderBy: { sortOrder: 'asc' },
