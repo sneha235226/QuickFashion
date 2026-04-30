@@ -19,9 +19,10 @@ const { createProfileSchema } = require('../../validators/seller/profile.validat
 // Validation wrapper
 const Joi = require('joi');
 const loginSchema = Joi.object({
-  mobile: Joi.string().required(),
+  identifier: Joi.string(),
+  mobile: Joi.string(),
   password: Joi.string().required()
-});
+}).or('identifier', 'mobile');
 
 // Marketplace routes
 const categoryRoutes = require('./category.route');
@@ -73,6 +74,21 @@ router.post(
   validate(refreshTokenSchema),
   otpCtrl.refreshToken
 );
+
+/**
+ * POST /api/seller/auth/forgot-password-otp
+ */
+router.post('/auth/forgot-password-otp', authLimiter, otpCtrl.forgotPasswordOtp);
+
+/**
+ * POST /api/seller/auth/verify-reset-otp
+ */
+router.post('/auth/verify-reset-otp', authLimiter, otpCtrl.verifyResetOtp);
+
+/**
+ * POST /api/seller/auth/reset-password
+ */
+router.post('/auth/reset-password', authLimiter, otpCtrl.resetPassword);
 
 // ─── Protected auth routes ───────────────────────────────────────────────────
 

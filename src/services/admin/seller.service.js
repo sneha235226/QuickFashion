@@ -1,6 +1,25 @@
 const SellerModel = require('../../models/seller');
 const SellerOnboardingModel = require('../../models/seller_onboarding');
 const AppError = require('../../utils/AppError');
+const { decrypt } = require('../../utils/crypto');
+const { getSignUrl } = require('../../utils/s3');
+
+/**
+ * Helper — recursively sign all URLs in a seller/onboarding object.
+ */
+const _signSellerUrls = async (seller) => {
+  if (!seller) return;
+
+  // Sign GST Document in businessDetails
+  if (seller.businessDetails?.gstDocumentUrl) {
+    seller.businessDetails.gstDocumentUrl = await getSignUrl(seller.businessDetails.gstDocumentUrl);
+  }
+
+  // Sign GST Document in legacy structure (onboarding)
+  if (seller.businessDetails?.gstDocument) {
+    seller.businessDetails.gstDocument = await getSignUrl(seller.businessDetails.gstDocument);
+  }
+};
 
 /**
  * List all sellers who have completed onboarding and are awaiting approval.
@@ -18,15 +37,76 @@ const listSellersByStatus = async (status) => {
     throw new AppError('Invalid status filter.', 400, 'INVALID_STATUS');
   }
 
-  return SellerModel.listPendingSellers(); // reused — filter applied inside
+  return SellerModel.listAllSellers(status);
+};
+
+/**
+ * List all sellers.
+ */
+const listAllSellers = async (status = null) => {
+  return SellerModel.listAllSellers(status);
 };
 
 /**
  * Get full seller details for the admin review panel.
  */
+/**
+ * Get full seller details for the admin review panel.
+ */
 const getSellerDetail = async (id) => {
+  // Try finding in active sellers first
+  const seller = await SellerModel.getSellerDetailForAdmin(id);
+  if (seller) {
+    // Transform relations to match the "basicDetails/businessDetails/bankDetails" structure the UI expects
+    const detail = {
+      id: seller.id,
+      phone: seller.mobile,
+      status: seller.sellerStatus,
+      createdAt: seller.createdAt,
+      rejectionReason: seller.rejectionReason,
+      basicDetails: {
+        firstName: seller.name?.split(' ')[0] || "",
+        lastName: seller.name?.split(' ').slice(1).join(' ') || "",
+        email: seller.email,
+        gender: seller.gender,
+        sellerType: seller.sellerType,
+      },
+      businessDetails: {
+        businessName: seller.businessDetails?.businessName,
+        ownerName: seller.businessDetails?.ownerName,
+        businessEmail: seller.businessDetails?.businessEmail,
+        businessPhone: seller.businessDetails?.businessPhone,
+        businessType: seller.businessDetails?.businessType,
+        storeType: seller.businessDetails?.storeType,
+        sellerType: seller.sellerType, // Added this for redundancy
+        gstNumber: seller.businessDetails?.gstin,
+        gstDocument: seller.businessDetails?.gstDocumentUrl,
+        productCategories: seller.businessDetails?.productCategories,
+        address: {
+          line1: seller.addresses?.[0]?.addressLine,
+          line2: seller.addresses?.[0]?.addressLine2,
+          landmark: seller.addresses?.[0]?.landmark,
+          city: seller.addresses?.[0]?.city,
+          state: seller.addresses?.[0]?.state,
+          pincode: seller.addresses?.[0]?.pincode,
+        }
+      },
+      bankDetails: {
+        bankName: seller.bankDetails?.bankName,
+        branchName: seller.bankDetails?.branch,
+        IFSC: seller.bankDetails?.ifsc,
+        accountHolderName: seller.bankDetails?.accountHolderName,
+        accountNumber: decrypt(seller.bankDetails?.accountNumberEncrypted), 
+      }
+    };
+    await _signSellerUrls(detail);
+    return detail;
+  }
+
+  // Fallback to onboarding table
   const onboarding = await SellerOnboardingModel.findById(id);
   if (!onboarding) throw new AppError('Seller application not found.', 404, 'SELLER_NOT_FOUND');
+  await _signSellerUrls(onboarding);
   return onboarding;
 };
 
@@ -52,7 +132,8 @@ const approveSeller = async (onboardingId) => {
         email: basicDetails.email,
         mobile: onboarding.phone,
         password: basicDetails.password,
-        sellerType: "RETAILER", // from prompt or basicDetails
+        gender: basicDetails.gender,
+        sellerType: businessDetails.sellerType || "RETAILER",
         sellerStatus: 'APPROVED'
       }
     });
@@ -62,6 +143,9 @@ const approveSeller = async (onboardingId) => {
         sellerId: newSeller.id,
         businessName: businessDetails.businessName,
         ownerName: businessDetails.ownerName,
+        businessEmail: businessDetails.businessEmail,
+        businessPhone: businessDetails.businessPhone,
+        businessType: businessDetails.businessType,
         productCategories: businessDetails.productCategories,
         storeType: businessDetails.storeType,
         gstin: businessDetails.gstNumber,
@@ -74,7 +158,9 @@ const approveSeller = async (onboardingId) => {
         sellerId: newSeller.id,
         fullName: `${basicDetails.firstName} ${basicDetails.lastName}`,
         phone: onboarding.phone,
-        addressLine: businessDetails.address.line1 || businessDetails.address.addressLine,
+        addressLine: businessDetails.address.line1,
+        addressLine2: businessDetails.address.line2,
+        landmark: businessDetails.address.landmark,
         city: businessDetails.address.city,
         state: businessDetails.address.state,
         pincode: businessDetails.address.pincode,
@@ -149,6 +235,7 @@ const reApproveSeller = async (sellerId) => {
 module.exports = {
   listPendingSellers,
   listSellersByStatus,
+  listAllSellers,
   getSellerDetail,
   approveSeller,
   rejectSeller,

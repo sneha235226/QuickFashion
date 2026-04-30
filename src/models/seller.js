@@ -16,6 +16,16 @@ const findByMobile = (mobile) =>
 const findById = (id) =>
   prisma.seller.findUnique({ where: { id } });
 
+const findByIdentifier = (identifier) =>
+  prisma.seller.findFirst({
+    where: {
+      OR: [
+        { email: identifier },
+        { mobile: identifier }
+      ]
+    }
+  });
+
 const findByIdSelect = (id, select) =>
   prisma.seller.findUnique({ where: { id }, select });
 
@@ -39,6 +49,17 @@ const updateRefreshToken = (id, refreshToken) =>
   prisma.seller.update({
     where: { id },
     data: { refreshToken },
+  });
+
+const findByResetToken = (token) =>
+  prisma.seller.findFirst({
+    where: { passwordResetToken: token },
+  });
+
+const updatePasswordReset = (id, data) =>
+  prisma.seller.update({
+    where: { id },
+    data,
   });
 
 // ─── BusinessDetails ──────────────────────────────────────────────────────────
@@ -147,6 +168,29 @@ const listPendingSellers = () =>
   });
 
 /**
+ * List all sellers in the system.
+ */
+const listAllSellers = (status = null) => {
+  const where = {};
+  if (status) where.sellerStatus = status;
+
+  return prisma.seller.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      mobile: true,
+      sellerStatus: true,
+      rejectionReason: true,
+      createdAt: true,
+      businessDetails: { select: { businessName: true, storeType: true, gstin: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
+/**
  * Full seller detail for admin review panel.
  */
 const getSellerDetailForAdmin = (sellerId) =>
@@ -154,13 +198,17 @@ const getSellerDetailForAdmin = (sellerId) =>
     where: { id: sellerId },
     select: {
       id: true,
+      name: true,
+      email: true,
       mobile: true,
+      gender: true,
+      sellerType: true,
       sellerStatus: true,
       rejectionReason: true,
       createdAt: true,
       businessDetails: true,
       addresses: { where: { isDefault: true } },
-      bankDetails: { select: { bankName: true, branch: true, ifsc: true, accountHolderName: true, verified: true } },
+      bankDetails: { select: { bankName: true, branch: true, ifsc: true, accountHolderName: true, accountNumberEncrypted: true, verified: true } },
     },
   });
 
@@ -194,11 +242,14 @@ module.exports = {
   // Seller
   findByMobile,
   findById,
+  findByIdentifier,
   findByIdSelect,
   create,
   upsertByMobile,
   updateSeller,
   updateRefreshToken,
+  findByResetToken,
+  updatePasswordReset,
   // BusinessDetails
   findBusinessByGstin,
   findBusinessBySeller,
@@ -217,6 +268,7 @@ module.exports = {
   getOnboardingSnapshot,
   // Admin approval
   listPendingSellers,
+  listAllSellers,
   getSellerDetailForAdmin,
   updateSellerStatus,
 };

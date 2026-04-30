@@ -7,9 +7,19 @@ const router = Router();
 router.use(adminProtect);
 
 /**
+ * GET /api/admin/catalogs?status=SUBMITTED|APPROVED|REJECTED|DRAFT
+ */
+router.get('/', catalogCtrl.listAll);
+
+/**
  * GET /api/admin/catalogs/pending
  */
 router.get('/pending', catalogCtrl.listPending);
+
+/**
+ * GET /api/admin/catalogs/stats
+ */
+router.get('/stats', catalogCtrl.getStats);
 
 /**
  * GET /api/admin/catalogs/:id

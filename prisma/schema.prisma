@@ -56,10 +56,13 @@ model Seller {
   email           String           @unique
   mobile          String           @unique
   password        String
+  gender          String?
   sellerType      SellerType
   sellerStatus    SellerStatus     @default(PENDING)
   rejectionReason String?
   refreshToken    String?
+  passwordResetToken  String?
+  passwordResetExpiry DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   addresses       Address[]
@@ -93,6 +96,9 @@ model BusinessDetails {
   sellerId          Int      @unique
   businessName      String
   ownerName         String
+  businessEmail     String?
+  businessPhone     String?
+  businessType      String?
   productCategories String[]
   storeType         String?
   gstin             String?  @unique
@@ -114,6 +120,7 @@ model Address {
   state       String
   city        String
   addressLine String
+  addressLine2 String?
   landmark    String?
   latitude    Float?
   longitude   Float?

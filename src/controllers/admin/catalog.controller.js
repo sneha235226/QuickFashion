@@ -15,6 +15,19 @@ const listPending = async (req, res, next) => {
 };
 
 /**
+ * GET /api/admin/catalogs?status=APPROVED|REJECTED|SUBMITTED|DRAFT
+ */
+const listAll = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    const catalogs = await adminCatalogService.listAllCatalogs(status || null);
+    return response.success(res, `${catalogs.length} catalog(s) retrieved.`, { catalogs });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/admin/catalogs/:id
  */
 const getDetail = async (req, res, next) => {
@@ -53,4 +66,16 @@ const reject = async (req, res, next) => {
   }
 };
 
-module.exports = { listPending, getDetail, approve, reject };
+/**
+ * GET /api/admin/catalogs/stats
+ */
+const getStats = async (req, res, next) => {
+  try {
+    const stats = await adminCatalogService.getCatalogStats();
+    return response.success(res, 'Catalog stats retrieved.', { stats });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listPending, listAll, getDetail, approve, reject, getStats };

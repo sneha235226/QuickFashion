@@ -5,6 +5,16 @@
 const prisma = require('../config/database');
 
 const CATALOG_FULL_INCLUDE = {
+  seller: {
+    select: {
+      id: true,
+      name: true,
+      mobile: true,
+      email: true,
+      sellerType: true,
+      businessDetails: { select: { businessName: true, gstin: true } },
+    },
+  },
   category: { select: { id: true, name: true, slug: true } },
   commonAttributes: {
     include: {
@@ -50,10 +60,19 @@ const findBySeller = async (sellerId, status = 'all') => {
 
   return prisma.catalog.findMany({
     where,
-    select: {
-      id: true, brandName: true, status: true, createdAt: true, rejectionNote: true,
+    include: {
       category: { select: { id: true, name: true } },
       _count: { select: { products: true, documents: true } },
+      products: {
+        take: 1,
+        select: {
+          images: {
+            where: { imageType: 'FRONT' },
+            take: 1,
+            select: { url: true }
+          }
+        }
+      }
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -77,6 +96,36 @@ const findPendingForAdmin = () =>
     },
     orderBy: { updatedAt: 'asc' },
   });
+
+const findAllByStatus = (status) => {
+  // Admin should never see drafts. If status is provided, use it, but if it's 'DRAFT', force no results.
+  // If no status is provided (All tab), exclude DRAFT.
+  let where = {};
+  if (status === 'DRAFT') {
+    where = { id: -1 }; // Force empty
+  } else if (status) {
+    where = { status };
+  } else {
+    where = { status: { not: 'DRAFT' } };
+  }
+
+  return prisma.catalog.findMany({
+    where,
+    include: {
+      seller: { select: { id: true, mobile: true, name: true, businessDetails: { select: { businessName: true } } } },
+      category: { select: { id: true, name: true } },
+      _count: { select: { products: true, documents: true } },
+      products: {
+        take: 1,
+        select: {
+          images: { where: { imageType: 'FRONT' }, take: 1, select: { url: true } },
+          price: true,
+        },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+};
 
 // ─── CatalogAttributeValue (common attributes) ───────────────────────────────
 
@@ -110,6 +159,13 @@ const deleteDocument = (id) =>
 const countDocuments = (catalogId) =>
   prisma.brandDocument.count({ where: { catalogId } });
 
+const getStatsForAdmin = () =>
+  prisma.catalog.groupBy({
+    by: ['status'],
+    _count: { _all: true },
+    where: { status: { not: 'DRAFT' } }
+  });
+
 module.exports = {
   create,
   findById,
@@ -119,9 +175,11 @@ module.exports = {
   countProducts,
   upsertCommonAttributes,
   findPendingForAdmin,
+  findAllByStatus,
   addDocument,
   findDocumentById,
   deleteDocument,
   countDocuments,
+  getStatsForAdmin,
 };
 

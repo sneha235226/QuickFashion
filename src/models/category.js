@@ -9,6 +9,12 @@ const findRoots = () =>
     orderBy: { id: 'asc' },
   });
 
+const findAllLeaf = () =>
+  prisma.category.findMany({
+    where: { isLeaf: true },
+    orderBy: { name: 'asc' },
+  });
+
 /**
  * Returns categories at a given level with a `hasChildren` flag.
  * parentId = null  → root categories
@@ -399,6 +405,7 @@ const deleteSizeColumn = (id) =>
 
 module.exports = {
   findRoots,
+  findAllLeaf,
   findByParentId,
   findById,
   findBySlug,

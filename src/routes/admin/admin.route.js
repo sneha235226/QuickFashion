@@ -43,6 +43,12 @@ router.post('/auth/logout', adminProtect, authCtrl.logout);
 // ─── Seller Management ────────────────────────────────────────────────────────
 
 /**
+ * GET /api/admin/sellers
+ * List all sellers.
+ */
+router.get('/sellers', adminProtect, sellerCtrl.listAll);
+
+/**
  * GET /api/admin/sellers/pending
  * List all sellers awaiting approval.
  */

@@ -9,12 +9,18 @@ const router = Router();
 router.get('/', async (req, res, next) => {
   try {
     const parentId = req.query.parentId ? parseInt(req.query.parentId, 10) : null;
-    if (parentId !== null) {
-      const parent = await CategoryModel.findById(parentId);
-      if (!parent) return next(new AppError('Parent category not found.', 404, 'NOT_FOUND'));
-    }
+    const allLeaf = req.query.allLeaf === 'true';
 
-    const categories = await CategoryModel.findByParentId(parentId);
+    let categories;
+    if (allLeaf) {
+      categories = await CategoryModel.findAllLeaf();
+    } else {
+      if (parentId !== null) {
+        const parent = await CategoryModel.findById(parentId);
+        if (!parent) return next(new AppError('Parent category not found.', 404, 'NOT_FOUND'));
+      }
+      categories = await CategoryModel.findByParentId(parentId);
+    }
     return response.success(res, `${categories.length} category/categories found.`, { categories });
   } catch (err) {
     next(err);

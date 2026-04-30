@@ -15,6 +15,20 @@ const listPending = async (req, res, next) => {
 };
 
 /**
+ * GET /api/admin/sellers
+ * All sellers in the system.
+ */
+const listAll = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    const sellers = await adminSellerService.listAllSellers(status);
+    return response.success(res, `Retrieved ${sellers.length} seller(s).`, { sellers });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/admin/sellers/:id
  * Full detail view for a single seller.
  */
@@ -83,4 +97,4 @@ const reApprove = async (req, res, next) => {
   }
 };
 
-module.exports = { listPending, getDetail, approve, reject, suspend, reApprove };
+module.exports = { listPending, listAll, getDetail, approve, reject, suspend, reApprove };

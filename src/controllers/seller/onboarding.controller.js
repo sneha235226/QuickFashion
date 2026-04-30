@@ -15,8 +15,11 @@ const step1Schema = Joi.object({
 const step2Schema = Joi.object({
     businessName: Joi.string().required(),
     ownerName: Joi.string().required(),
+    businessEmail: Joi.string().email().required(),
+    businessPhone: Joi.string().required(),
     productCategories: Joi.array().items(Joi.string()).min(1).required(),
-    businessType: Joi.string().valid('individual', 'proprietorship', 'company').required(),
+    businessType: Joi.string().valid('individual', 'proprietorship', 'partnership', 'company').required(),
+    sellerType: Joi.string().valid('MANUFACTURER', 'WHOLESALER', 'RETAILER', 'TRADER').required(),
     storeType: Joi.string().valid('wholesale', 'retail').required(),
     gstNumber: Joi.string().required(),
     gstDocument: Joi.string().uri().required(),
