@@ -139,4 +139,38 @@ const logout = async (id, role = 'SELLER') => {
     }
 };
 
-module.exports = { sendOtp, verifyOtp, refreshTokens, logout };
+/**
+ * verifyOtpForPasswordReset — Verifies OTP for password reset purpose.
+ */
+const verifyOtpForPasswordReset = async (mobileNumber, otp, role, requestId = null) => {
+    console.log(`[AUTH_SERVICE] verifyOtpForPasswordReset called: mobile=${mobileNumber}, otp=${otp}, role=${role}, requestId=${requestId}`);
+    let otpRecord;
+
+    if (requestId) {
+        otpRecord = await OTPModel.findByRequestId(requestId);
+    } else {
+        otpRecord = await OTPModel.findActiveByMobile(mobileNumber, role);
+    }
+
+    if (!otpRecord) {
+        throw new AppError('Invalid or expired OTP request.', 400, 'INVALID_REQUEST');
+    }
+
+    if (otpRecord.mobileNumber !== mobileNumber || otpRecord.role !== role) {
+        throw new AppError('Request details mismatch.', 400, 'BAD_REQUEST');
+    }
+
+    if (otpRecord.used || otpRecord.expiresAt < new Date()) {
+        throw new AppError('OTP expired or already used.', 400, 'OTP_EXPIRED');
+    }
+
+    // Verify with MSG91
+    await msg91.verifyOtp(mobileNumber, otp, otpRecord.requestId);
+
+    // Mark OTP as used
+    await OTPModel.markVerified(otpRecord.id);
+
+    return true;
+};
+
+module.exports = { sendOtp, verifyOtp, refreshTokens, logout, verifyOtpForPasswordReset };

@@ -218,4 +218,68 @@ const resetPassword = async (req, res, next) => {
     }
 };
 
-module.exports = { register, login, sendOtp, verifyOtp, refreshToken, forgotPassword, resetPassword };
+/**
+ * POST /api/user/auth/forgot-password-otp
+ * Triggers an OTP for password reset.
+ */
+const forgotPasswordOtp = async (req, res, next) => {
+    try {
+        const { mobile } = req.body;
+        if (!mobile) return next(new AppError('Mobile number is required.', 400, 'VALIDATION_ERROR'));
+
+        const user = await UserModel.findByMobile(mobile);
+        if (!user) {
+            return next(new AppError('No account found with this mobile number.', 404, 'NOT_FOUND'));
+        }
+
+        const { requestId } = await authService.sendOtp(mobile, 'USER');
+        return response.success(res, `OTP sent to ${mobile}.`, { requestId });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * POST /api/user/auth/verify-reset-otp
+ * Step 2 of 3: Verifies OTP and returns a temporary reset token.
+ */
+const verifyResetOtp = async (req, res, next) => {
+    try {
+        const { mobile, otp, requestId } = req.body;
+        if (!mobile || !otp) {
+            return next(new AppError('Mobile and OTP are required.', 400, 'VALIDATION_ERROR'));
+        }
+
+        // 1. Verify OTP
+        await authService.verifyOtpForPasswordReset(mobile, otp, 'USER', requestId);
+
+        // 2. Find user
+        const user = await UserModel.findByMobile(mobile);
+        if (!user) throw new AppError('User not found.', 404, 'NOT_FOUND');
+
+        // 3. Generate a temporary reset token (valid for 10 mins)
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+        await UserModel.updatePasswordReset(user.id, {
+            passwordResetToken:  resetToken,
+            passwordResetExpiry: resetExpiry,
+        });
+
+        return response.success(res, 'OTP verified successfully.', { resetToken });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { 
+    register, 
+    login, 
+    sendOtp, 
+    verifyOtp, 
+    refreshToken, 
+    forgotPassword, 
+    resetPassword, 
+    forgotPasswordOtp, 
+    verifyResetOtp 
+};

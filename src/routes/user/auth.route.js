@@ -8,17 +8,8 @@ router.post('/login',            userAuthCtrl.login);
 router.post('/send-otp',         userAuthCtrl.sendOtp);
 router.post('/verify-otp',       userAuthCtrl.verifyOtp);
 router.post('/refresh',          userAuthCtrl.refreshToken);
-
-/**
- * POST /api/user/auth/forgot-password
- * Body: { identifier } — email or mobile
- */
-router.post('/forgot-password',  userAuthCtrl.forgotPassword);
-
-/**
- * POST /api/user/auth/reset-password
- * Body: { token, newPassword }
- */
-router.post('/reset-password',   userAuthCtrl.resetPassword);
+router.post('/forgot-password-otp', userAuthCtrl.forgotPasswordOtp);
+router.post('/verify-reset-otp',    userAuthCtrl.verifyResetOtp);
+router.post('/reset-password',      userAuthCtrl.resetPassword);
 
 module.exports = router;
