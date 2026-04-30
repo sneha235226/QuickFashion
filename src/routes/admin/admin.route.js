@@ -11,6 +11,7 @@ const { rejectSchema, suspendSchema }    = require('../../validators/admin/selle
 
 const categoryRoutes = require('./category.route');
 const catalogRoutes  = require('./catalog.route');
+const configRoutes   = require('./config.route');
 
 const router = Router();
 
@@ -79,5 +80,6 @@ router.post('/sellers/:id/reapprove', adminProtect, sellerCtrl.reApprove);
 
 router.use('/categories', categoryRoutes);
 router.use('/catalogs',   catalogRoutes);
+router.use('/config',     configRoutes);
 
 module.exports = router;

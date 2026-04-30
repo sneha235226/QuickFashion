@@ -28,6 +28,8 @@ const categoryRoutes = require('./category.route');
 const catalogRoutes = require('./catalog.route');
 const inventoryRoutes = require('./inventory.route');
 
+const orderRoutes  = require('./order.route');
+
 const router = Router();
 
 /**
@@ -144,7 +146,8 @@ router.post(
 router.get('/home', protect, requireApproved, profileCtrl.sellerHome);
 
 router.use('/categories', categoryRoutes);
-router.use('/catalog', catalogRoutes);
+router.use('/catalog',   catalogRoutes);
 router.use('/inventory', inventoryRoutes);
+router.use('/orders',    orderRoutes);
 
 module.exports = router;

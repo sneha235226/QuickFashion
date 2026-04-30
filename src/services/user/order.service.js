@@ -21,29 +21,52 @@ const createOrder = async (userId) => {
         }
     }
 
-    // 3. Execution in Transaction
+    // 3. Fetch the current global commission rate
+    const { getCommissionRate } = require('../../services/admin/config.service');
+    const commissionRate = await getCommissionRate();
+
+    // Default SLA: 2 days from now
+    const dispatchSla = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+
+    // 4. Calculate total commission across all items
+    const totalCommission = cart.items.reduce((sum, item) => {
+        const commissionAmount = (item.price * item.quantity * commissionRate) / 100;
+        return sum + commissionAmount;
+    }, 0);
+
+    // 5. Execution in Transaction
     return prisma.$transaction(async (tx) => {
         // a. Create the Order with full financial snapshot
         const order = await tx.order.create({
             data: {
                 userId,
-                subTotal: cart.summary.totalBasePrice,
-                totalGst: cart.summary.totalGst,
-                totalTcs: cart.summary.totalTcs,
-                totalTds: cart.summary.totalTds,
-                totalDiscount: cart.summary.totalDiscount,
-                grandTotal: cart.summary.grandTotal,
+                subTotal:         cart.summary.totalBasePrice,
+                totalGst:         cart.summary.totalGst,
+                totalTcs:         cart.summary.totalTcs,
+                totalTds:         cart.summary.totalTds,
+                totalDiscount:    cart.summary.totalDiscount,
+                grandTotal:       cart.summary.grandTotal,
+                totalCommission:  parseFloat(totalCommission.toFixed(2)),
                 status: 'PLACED',
                 items: {
-                    create: cart.items.map((item) => ({
-                        productId: item.productId,
-                        quantity: item.quantity,
-                        price: item.price,
-                        mrp: item.mrp,
-                        gstAmount: item.itemGst,
-                        tcsAmount: item.itemTcs,
-                        tdsAmount: item.itemTds,
-                    })),
+                    create: cart.items.map((item) => {
+                        const commissionAmount = parseFloat(
+                            ((item.price * item.quantity * commissionRate) / 100).toFixed(2)
+                        );
+                        return {
+                            productId:        item.productId,
+                            quantity:         item.quantity,
+                            price:            item.price,
+                            mrp:              item.mrp,
+                            gstAmount:        item.itemGst,
+                            tcsAmount:        item.itemTcs,
+                            tdsAmount:        item.itemTds,
+                            commissionRate,
+                            commissionAmount,
+                            status:           'PENDING',
+                            dispatchSla,
+                        };
+                    }),
                 },
             },
             include: {
@@ -55,9 +78,7 @@ const createOrder = async (userId) => {
         for (const item of cart.items) {
             await tx.product.update({
                 where: { id: item.productId },
-                data: {
-                    stock: { decrement: item.quantity },
-                },
+                data:  { stock: { decrement: item.quantity } },
             });
         }
 
@@ -69,20 +90,23 @@ const createOrder = async (userId) => {
         // d. Prepare clean response
         return {
             ...order,
-            subTotal: Number(order.subTotal),
-            totalGst: Number(order.totalGst),
-            totalTcs: Number(order.totalTcs),
-            totalTds: Number(order.totalTds),
-            totalDiscount: Number(order.totalDiscount),
-            grandTotal: Number(order.grandTotal),
-            items: order.items.map(item => ({
+            subTotal:        Number(order.subTotal),
+            totalGst:        Number(order.totalGst),
+            totalTcs:        Number(order.totalTcs),
+            totalTds:        Number(order.totalTds),
+            totalDiscount:   Number(order.totalDiscount),
+            grandTotal:      Number(order.grandTotal),
+            totalCommission: Number(order.totalCommission),
+            items: order.items.map((item) => ({
                 ...item,
-                price: Number(item.price),
-                mrp: Number(item.mrp),
-                gstAmount: Number(item.gstAmount),
-                tcsAmount: Number(item.tcsAmount),
-                tdsAmount: Number(item.tdsAmount)
-            }))
+                price:            Number(item.price),
+                mrp:              Number(item.mrp),
+                gstAmount:        Number(item.gstAmount),
+                tcsAmount:        Number(item.tcsAmount),
+                tdsAmount:        Number(item.tdsAmount),
+                commissionRate:   Number(item.commissionRate),
+                commissionAmount: Number(item.commissionAmount),
+            })),
         };
     }, {
         timeout: 10000,
