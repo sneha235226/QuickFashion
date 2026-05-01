@@ -13,7 +13,7 @@ const assertOwnership = async (catalogId, sellerId, { requireDraft = false } = {
   const catalog = await CatalogModel.findByIdRaw(catalogId);
   if (!catalog) throw new AppError('Catalog not found.', 404, 'NOT_FOUND');
   if (catalog.sellerId !== sellerId) throw new AppError('Access denied.', 403, 'FORBIDDEN');
-  if (requireDraft && catalog.status !== 'DRAFT') {
+  if (requireDraft && !['DRAFT', 'REJECTED'].includes(catalog.status)) {
     throw new AppError('This catalog cannot be modified in its current status.', 400, 'NOT_EDITABLE');
   }
   return catalog;
@@ -152,6 +152,7 @@ const processUnifiedCatalog = async (sellerId, payload, imageUrls = [], docUrl =
       countryOfOrigin: p.countryOfOrigin,
       sizeDetails: p.sizeDetails ?? null,
       resolvedVariant,
+      images: p.images || null, // Optional variant-specific images
     });
   }
 
@@ -291,10 +292,12 @@ const processUnifiedCatalog = async (sellerId, payload, imageUrls = [], docUrl =
         });
       }
 
-      // Images — every product gets same set of images
-      if (imageUrls.length > 0) {
+      // Images — prefer variant-specific images if provided, fallback to global imageUrls
+      const pImages = p.images ? IMAGE_TYPES.map(type => p.images[type]).filter(Boolean) : imageUrls;
+      
+      if (pImages.length > 0) {
         await tx.productImage.createMany({
-          data: imageUrls.map((url, index) => ({
+          data: pImages.map((url, index) => ({
             productId: product.id,
             imageType: IMAGE_TYPES[index] || 'FRONT',
             url,

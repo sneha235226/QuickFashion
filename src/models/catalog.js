@@ -106,7 +106,8 @@ const findAllByStatus = (status) => {
   } else if (status) {
     where = { status };
   } else {
-    where = { status: { not: 'DRAFT' } };
+    // Admin All tab: Show everything except DRAFT and DISCARDED
+    where = { status: { notIn: ['DRAFT', 'DISCARDED'] } };
   }
 
   return prisma.catalog.findMany({

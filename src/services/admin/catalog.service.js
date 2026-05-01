@@ -107,7 +107,7 @@ const rejectCatalog = async (catalogId, reason) => {
   if (catalog.status !== 'SUBMITTED') {
     throw new AppError('Only catalogs in SUBMITTED status can be rejected.', 400, 'INVALID_STATUS');
   }
-  return CatalogModel.update(catalogId, { status: 'DRAFT', rejectionNote: reason });
+  return CatalogModel.update(catalogId, { status: 'REJECTED', rejectionNote: reason });
 };
 
 module.exports = {

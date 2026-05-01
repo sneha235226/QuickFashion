@@ -8,12 +8,14 @@ const createCategorySchema = Joi.object({
   slug: Joi.string().trim().lowercase().optional(),
   parentId: Joi.number().integer().positive().optional().allow(null),
   isLeaf: Joi.boolean().optional(),
+  commissionRate: Joi.number().min(0).max(100).optional(),
 });
 
 const updateCategorySchema = Joi.object({
   name: Joi.string().trim().min(2).max(100).optional(),
   parentId: Joi.number().integer().positive().optional().allow(null),
   isLeaf: Joi.boolean().optional(),
+  commissionRate: Joi.number().min(0).max(100).optional(),
 }).min(1).messages({
   'object.min': 'Provide at least one field to update.',
 });

@@ -32,6 +32,7 @@ const productInputSchema = Joi.object({
   countryOfOrigin: Joi.string().trim().required().messages({ 'any.required': 'Country of Origin is required.' }),
   sizeDetails: Joi.object().optional(),
   variantAttributes: Joi.array().items(attributeValueSchema).default([]),
+  images: Joi.object().optional(),
 });
 
 const unifiedCatalogSchema = Joi.object({
