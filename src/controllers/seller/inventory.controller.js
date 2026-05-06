@@ -1,5 +1,6 @@
 const inventoryService = require('../../services/seller/inventory.service');
 const response = require('../../utils/response');
+const { getSignUrl } = require('../../utils/s3');
 const Joi = require('joi');
 
 const updateStockSchema = Joi.object({
@@ -21,9 +22,8 @@ const getInventory = async (req, res, next) => {
         const result = await inventoryService.listInventory(req.seller.id, filters);
         
         // Sign URLs
-        const { getSignUrl } = require('../../utils/s3');
         for (const product of result.products) {
-            if (product.images && product.images.length > 0) {
+            if (product.images) {
                 for (const img of product.images) {
                     if (img.url) img.url = await getSignUrl(img.url);
                 }

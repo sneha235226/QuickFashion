@@ -3,6 +3,7 @@
  */
 const CartModel = require('../../models/cart');
 const AppError = require('../../utils/AppError');
+const { getSignUrl } = require('../../utils/s3');
 
 /**
  * Get cart with full price breakdown (base price, GST, totals).
@@ -16,7 +17,7 @@ const getCart = async (userId) => {
     let totalTds = 0;
     let totalMrp = 0;
 
-    const items = cart.items.map((item) => {
+    const items = await Promise.all(cart.items.map(async (item) => {
         const product = item.product;
 
         // Only show items from APPROVED catalogs
@@ -39,11 +40,14 @@ const getCart = async (userId) => {
         totalTds += itemTds;
         totalMrp += itemMrpTotal;
 
+        let imageUrl = product.images[0]?.url || null;
+        if (imageUrl) imageUrl = await getSignUrl(imageUrl);
+
         return {
             id: item.id,
             productId: product.id,
             productName: product.productName,
-            image: product.images[0]?.url || null,
+            image: imageUrl,
             brand: product.catalog?.brandName || null,
             category: product.catalog?.category?.name || null,
             price,
@@ -59,7 +63,7 @@ const getCart = async (userId) => {
             inStock: product.stock >= quantity,
             availableStock: product.stock,
         };
-    });
+    }));
 
     const grandTotal = parseFloat((totalBasePrice + totalGst).toFixed(2));
     const totalDiscount = parseFloat((totalMrp - totalBasePrice).toFixed(2));

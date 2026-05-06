@@ -3,6 +3,7 @@
  */
 const WishlistModel = require('../../models/wishlist');
 const AppError = require('../../utils/AppError');
+const { getSignUrl } = require('../../utils/s3');
 
 /**
  * Get all wishlist items for a user.
@@ -10,18 +11,25 @@ const AppError = require('../../utils/AppError');
 const getWishlist = async (userId) => {
     const items = await WishlistModel.findByUserId(userId);
 
-    return items.map((item) => ({
-        id: item.id,
-        productId: item.product.id,
-        productName: item.product.productName,
-        price: parseFloat(item.product.price),
-        mrp: item.product.mrp ? parseFloat(item.product.mrp) : null,
-        image: item.product.images[0]?.url || null,
-        brand: item.product.catalog?.brandName || null,
-        category: item.product.catalog?.category?.name || null,
-        inStock: item.product.stock > 0,
-        addedAt: item.createdAt,
+    const mappedItems = await Promise.all(items.map(async (item) => {
+        let imageUrl = item.product.images[0]?.url || null;
+        if (imageUrl) imageUrl = await getSignUrl(imageUrl);
+
+        return {
+            id: item.id,
+            productId: item.product.id,
+            productName: item.product.productName,
+            price: parseFloat(item.product.price),
+            mrp: item.product.mrp ? parseFloat(item.product.mrp) : null,
+            image: imageUrl,
+            brand: item.product.catalog?.brandName || null,
+            category: item.product.catalog?.category?.name || null,
+            inStock: item.product.stock > 0,
+            addedAt: item.createdAt,
+        };
     }));
+
+    return mappedItems;
 };
 
 /**

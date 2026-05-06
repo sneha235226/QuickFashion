@@ -1,12 +1,19 @@
 const SellerModel = require('../../models/seller');
 const SellerOnboardingModel = require('../../models/seller_onboarding');
 const AppError = require('../../utils/AppError');
+const { getSignUrl } = require('../../utils/s3');
 
 /**
  * List all sellers who have completed onboarding and are awaiting approval.
  */
 const listPendingSellers = async () => {
-  return SellerOnboardingModel.getPendingApproval();
+  const sellers = await SellerOnboardingModel.getPendingApproval();
+  for (const seller of sellers) {
+    if (seller.businessDetails && seller.businessDetails.gstDocument) {
+      seller.businessDetails.gstDocument = await getSignUrl(seller.businessDetails.gstDocument);
+    }
+  }
+  return sellers;
 };
 
 /**
@@ -27,6 +34,11 @@ const listSellersByStatus = async (status) => {
 const getSellerDetail = async (id) => {
   const onboarding = await SellerOnboardingModel.findById(id);
   if (!onboarding) throw new AppError('Seller application not found.', 404, 'SELLER_NOT_FOUND');
+  
+  if (onboarding.businessDetails && onboarding.businessDetails.gstDocument) {
+    onboarding.businessDetails.gstDocument = await getSignUrl(onboarding.businessDetails.gstDocument);
+  }
+  
   return onboarding;
 };
 

@@ -1,6 +1,7 @@
 const prisma = require('../../config/database');
 const cartService = require('./cart.service');
 const AppError = require('../../utils/AppError');
+const { getSignUrl } = require('../../utils/s3');
 
 /**
  * Create order from user's current cart.
@@ -137,23 +138,36 @@ const getOrders = async (userId) => {
     });
 
     // Convert Decimals to Numbers for consistent API output
-    return orders.map(order => ({
-        ...order,
-        subTotal: Number(order.subTotal),
-        totalGst: Number(order.totalGst),
-        totalTcs: Number(order.totalTcs),
-        totalTds: Number(order.totalTds),
-        totalDiscount: Number(order.totalDiscount),
-        grandTotal: Number(order.grandTotal),
-        items: order.items.map(item => ({
-            ...item,
-            price: Number(item.price),
-            mrp: Number(item.mrp),
-            gstAmount: Number(item.gstAmount),
-            tcsAmount: Number(item.tcsAmount),
-            tdsAmount: Number(item.tdsAmount)
-        }))
+    const mappedOrders = await Promise.all(orders.map(async (order) => {
+        const items = await Promise.all(order.items.map(async (item) => {
+            if (item.product?.images) {
+                for (const img of item.product.images) {
+                    if (img.url) img.url = await getSignUrl(img.url);
+                }
+            }
+            return {
+                ...item,
+                price: Number(item.price),
+                mrp: Number(item.mrp),
+                gstAmount: Number(item.gstAmount),
+                tcsAmount: Number(item.itemTcs || item.tcsAmount || 0),
+                tdsAmount: Number(item.itemTds || item.tdsAmount || 0)
+            };
+        }));
+
+        return {
+            ...order,
+            subTotal: Number(order.subTotal),
+            totalGst: Number(order.totalGst),
+            totalTcs: Number(order.totalTcs),
+            totalTds: Number(order.totalTds),
+            totalDiscount: Number(order.totalDiscount),
+            grandTotal: Number(order.grandTotal),
+            items
+        };
     }));
+
+    return mappedOrders;
 };
 
 /**
@@ -182,6 +196,22 @@ const getOrderDetail = async (userId, orderId) => {
     if (order.userId !== userId) throw new AppError('Access denied.', 403, 'FORBIDDEN');
 
     // Convert Decimals to Numbers
+    const items = await Promise.all(order.items.map(async (item) => {
+        if (item.product?.images) {
+            for (const img of item.product.images) {
+                if (img.url) img.url = await getSignUrl(img.url);
+            }
+        }
+        return {
+            ...item,
+            price: Number(item.price),
+            mrp: Number(item.mrp),
+            gstAmount: Number(item.gstAmount),
+            tcsAmount: Number(item.tcsAmount),
+            tdsAmount: Number(item.tdsAmount)
+        };
+    }));
+
     return {
         ...order,
         subTotal: Number(order.subTotal),
@@ -190,14 +220,7 @@ const getOrderDetail = async (userId, orderId) => {
         totalTds: Number(order.totalTds),
         totalDiscount: Number(order.totalDiscount),
         grandTotal: Number(order.grandTotal),
-        items: order.items.map(item => ({
-            ...item,
-            price: Number(item.price),
-            mrp: Number(item.mrp),
-            gstAmount: Number(item.gstAmount),
-            tcsAmount: Number(item.tcsAmount),
-            tdsAmount: Number(item.tdsAmount)
-        }))
+        items
     };
 };
 

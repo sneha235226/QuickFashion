@@ -1,4 +1,5 @@
 const prisma = require('../../config/database');
+const { getSignUrl } = require('../../utils/s3');
 
 /**
  * List products available to users.
@@ -47,13 +48,23 @@ const listProducts = async (filters = {}) => {
         prisma.product.count({ where }),
     ]);
 
-    const mappedProducts = products.map(p => ({
-        ...p,
-        price: Number(p.price),
-        mrp: p.mrp ? Number(p.mrp) : null,
-        returnPrice: p.returnPrice ? Number(p.returnPrice) : null,
-        gstRate: p.gstRate ? Number(p.gstRate) : null,
-        netWeight: p.netWeight ? Number(p.netWeight) : null,
+    const mappedProducts = await Promise.all(products.map(async (p) => {
+        const product = {
+            ...p,
+            price: Number(p.price),
+            mrp: p.mrp ? Number(p.mrp) : null,
+            returnPrice: p.returnPrice ? Number(p.returnPrice) : null,
+            gstRate: p.gstRate ? Number(p.gstRate) : null,
+            netWeight: p.netWeight ? Number(p.netWeight) : null,
+        };
+
+        if (product.images) {
+            for (const img of product.images) {
+                if (img.url) img.url = await getSignUrl(img.url);
+            }
+        }
+
+        return product;
     }));
 
     return {
@@ -91,6 +102,12 @@ const getProductDetails = async (productId) => {
     });
 
     if (!product) return null;
+
+    if (product.images) {
+        for (const img of product.images) {
+            if (img.url) img.url = await getSignUrl(img.url);
+        }
+    }
 
     return {
         ...product,
@@ -150,6 +167,18 @@ const listCatalogs = async (filters = {}) => {
         }),
         prisma.catalog.count({ where }),
     ]);
+
+    for (const catalog of catalogs) {
+        if (catalog.products) {
+            for (const product of catalog.products) {
+                if (product.images) {
+                    for (const img of product.images) {
+                        if (img.url) img.url = await getSignUrl(img.url);
+                    }
+                }
+            }
+        }
+    }
 
     return {
         catalogs,
