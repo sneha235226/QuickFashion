@@ -22,7 +22,9 @@ const listProducts = async (filters = {}) => {
     };
 
     if (categoryId) {
-        where.catalog.categoryId = categoryId;
+        // Support recursive category filtering
+        const categoryIds = await _getAllChildCategoryIds(parseInt(categoryId, 10));
+        where.catalog.categoryId = { in: categoryIds };
     }
 
     if (search) {
@@ -139,7 +141,8 @@ const listCatalogs = async (filters = {}) => {
     };
 
     if (categoryId) {
-        where.categoryId = categoryId;
+        const categoryIds = await _getAllChildCategoryIds(parseInt(categoryId, 10));
+        where.categoryId = { in: categoryIds };
     }
 
     if (search) {
@@ -189,6 +192,24 @@ const listCatalogs = async (filters = {}) => {
             totalPages: Math.ceil(total / limit),
         },
     };
+};
+
+/**
+ * Recursive helper to get a category ID and all its descendant IDs.
+ */
+const _getAllChildCategoryIds = async (parentId) => {
+    const ids = [parentId];
+    const children = await prisma.category.findMany({
+        where: { parentId },
+        select: { id: true }
+    });
+
+    for (const child of children) {
+        const childIds = await _getAllChildCategoryIds(child.id);
+        ids.push(...childIds);
+    }
+
+    return ids;
 };
 
 module.exports = { listProducts, getProductDetails, listCatalogs };
